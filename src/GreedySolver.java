@@ -79,12 +79,13 @@ public class GreedySolver implements Solver {
 				else
 					return res;
 			} else {
-				try {
-					Thread.sleep(1000);
-					continue;
-				} catch (InterruptedException e) {
-					e.printStackTrace();
-				}
+				//For testing that timeout handling works on the server as it should
+//				try {
+//					Thread.sleep(1000);
+//					continue;
+//				} catch (InterruptedException e) {
+//					e.printStackTrace();
+//				}
 			}
 			
 			long ms_left = Main_Load.msRemaining();
@@ -155,7 +156,7 @@ public class GreedySolver implements Solver {
 		if(res == null) {//alright, graph is clean, do our thing
 			res = g.transformSolution(new ArrayList<Integer>());
 		} //else
-			//we got our solution from recursing on SCCs
+			//we got our solution from recursing on SCCs, or an early kill
 		
 		
 		if(!CLEANUP_AFTER || skipCleanup)
@@ -173,7 +174,7 @@ public class GreedySolver implements Solver {
 			int v=(CLEANUP_DIRECTION_FWD ? res.get(vi) : res.get(res.size()-1-vi));
 		
 			g.dropped[v] = false;
-			if(g.hasCycleWithoutDropped() || Main_Load.msRemaining() < -20000) {
+			if(Main_Load.msRemaining() < -20000 || g.hasCycleWithoutDropped()) {
 				g.dropped[v] = true;
 			} else {
 				if(Main_Load.VERBOSE)
