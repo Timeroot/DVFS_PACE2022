@@ -43,7 +43,7 @@ public class GreedySolver implements Solver {
 	static final boolean CLEANUP_DIRECTION_FWD = true;
 	static final boolean USE_SCC = true;
 	
-	static final boolean START_ARTICULATION_CHECK = true;
+	static final boolean START_ARTICULATION_CHECK = false;
 	static final int ARTICULATION_CHECK_FREQ = 100000;
 	static final int ARTICULATION_MIN_N = 200;
 	
@@ -81,6 +81,8 @@ public class GreedySolver implements Solver {
 					res = g.transformSolution(new ArrayList<Integer>());
 					ArrayList<ReducedGraph> sccParts = g.splitOnSCC(scc, false);
 					g = null;//free g
+					if(skipCleanup)
+						g_copy = null;
 					for(ReducedGraph part : sccParts) {
 						if(Main_Load.VERBOSE)
 							System.out.println("Recurse on SCC of size "+part.real_N());
