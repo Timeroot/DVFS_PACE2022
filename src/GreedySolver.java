@@ -43,6 +43,14 @@ public class GreedySolver implements Solver {
 	static final boolean CLEANUP_DIRECTION_FWD = true;
 	static final boolean USE_SCC = true;
 	
+	static final boolean START_ARTICULATION_CHECK = true;
+	static final int ARTICULATION_CHECK_FREQ = 100000;
+	static final int ARTICULATION_MIN_N = 200;
+	
+	static final int FAST_SINKHORN_MARGIN = 10000;
+	static final int DEGREE_HEURISTIC_SWITCH = 400000;
+	static final int CLEANUP_MARGIN = -20000;
+	
 	@Override
 	public ArrayList<Integer> solve(ReducedGraph g) {
 		return solve(g, false);
@@ -60,7 +68,30 @@ public class GreedySolver implements Solver {
 		
 		ArrayList<Integer> res = null; //will eventually hold solution
 		
+		int passesSinceLastArticulationCheck = START_ARTICULATION_CHECK ? ARTICULATION_CHECK_FREQ : 0;
+		
 		while(g.N-g.dropped_Size > 0) {
+
+			if(USE_SCC) {
+				SCC scc = new SCC();
+				boolean sccSplit = scc.SCC(g);
+				if(sccSplit) {
+					if(Main_Load.VERBOSE)
+						System.out.println("SCC split: "+scc.sccInfo.size()+" "+scc.sccInfo.stream().mapToInt(ArrayList::size).boxed().collect(Collectors.toList()));
+					res = g.transformSolution(new ArrayList<Integer>());
+					ArrayList<ReducedGraph> sccParts = g.splitOnSCC(scc, false);
+					g = null;//free g
+					for(ReducedGraph part : sccParts) {
+						if(Main_Load.VERBOSE)
+							System.out.println("Recurse on SCC of size "+part.real_N());
+						res.addAll(this.solve(part, true));
+						if(Main_Load.VERBOSE)
+							System.out.println("Recursion complete");
+					}
+					break;
+				}
+			}
+			
 //			long t0 = System.currentTimeMillis();
 //			System.out.println("Choosing from "+g.real_N());
 
@@ -88,14 +119,29 @@ public class GreedySolver implements Solver {
 //				}
 			}
 			
+			int v0 = -1;
 			long ms_left = Main_Load.msRemaining();
-			int v0;
-			if(ms_left > 10000 && g.real_N() < 500) {
-				v0 = GreedyHeuristics.sinkhornHeuristic(g, 20);
-			} else if(ms_left > 400000) {
-				v0 = GreedyHeuristics.sinkhornHeuristic(g, 4);
+			
+			if(g.real_N() >= ARTICULATION_MIN_N && passesSinceLastArticulationCheck >= ARTICULATION_CHECK_FREQ) {
+				int artic = StrongArticulationPoints.articulations(g);
+				if(Main_Load.VERBOSE)
+					System.out.println("Articulation output: "+artic);
+				if(artic != -1) {
+					v0 = artic;
+				}
+				passesSinceLastArticulationCheck=0;
 			} else {
-				v0 = GreedyHeuristics.degreeHeuristic(g);
+				passesSinceLastArticulationCheck++;
+			}
+			
+			if(v0 == -1) {
+				if(ms_left > FAST_SINKHORN_MARGIN && g.real_N() < 500) {
+					v0 = GreedyHeuristics.sinkhornHeuristic(g, 20);
+				} else if(ms_left > DEGREE_HEURISTIC_SWITCH) {
+					v0 = GreedyHeuristics.sinkhornHeuristic(g, 4);
+				} else {
+					v0 = GreedyHeuristics.degreeHeuristic(g);
+				}
 			}
 //			int v0 = GreedyHeuristics.eigenHeuristic(g);
 //			int v0 = FlowSolver.flowHeuristic(g);
@@ -114,26 +160,6 @@ public class GreedySolver implements Solver {
 			long t1 = System.currentTimeMillis();
 
 			g.prune();
-
-			if(USE_SCC) {
-				SCC scc = new SCC();
-				boolean sccSplit = scc.SCC(g);
-				if(sccSplit) {
-					if(Main_Load.VERBOSE)
-						System.out.println("SCC split: "+scc.sccInfo.size()+" "+scc.sccInfo.stream().mapToInt(ArrayList::size).boxed().collect(Collectors.toList()));
-					res = g.transformSolution(new ArrayList<Integer>());
-					ArrayList<ReducedGraph> sccParts = g.splitOnSCC(scc, false);
-					g = null;//free g
-					for(ReducedGraph part : sccParts) {
-						if(Main_Load.VERBOSE)
-							System.out.println("Recurse on SCC of size "+part.real_N());
-						res.addAll(this.solve(part, true));
-						if(Main_Load.VERBOSE)
-							System.out.println("Recursion complete");
-					}
-					break;
-				}
-			}
 			
 //			if(Main_Load.TESTING) {
 //				if(g.real_N() <= 100 && g.real_N() > 3) {
@@ -144,7 +170,8 @@ public class GreedySolver implements Solver {
 //					System.out.println("===========");
 //					System.out.println("SCC says "+new SCC().SCC(g));
 //					System.out.println("RealN = "+g.real_N());
-//					StrongArticulationPoints.articulations(g);
+//					int artic = StrongArticulationPoints.articulations(g);
+//					System.out.println("Articulation output: "+artic);
 //					System.exit(0);
 //				}
 //			}
@@ -174,7 +201,7 @@ public class GreedySolver implements Solver {
 			int v=(CLEANUP_DIRECTION_FWD ? res.get(vi) : res.get(res.size()-1-vi));
 		
 			g.dropped[v] = false;
-			if(Main_Load.msRemaining() < -20000 || g.hasCycleWithoutDropped()) {
+			if(Main_Load.msRemaining() < CLEANUP_MARGIN || g.hasCycleWithoutDropped()) {
 				g.dropped[v] = true;
 			} else {
 				if(Main_Load.VERBOSE)

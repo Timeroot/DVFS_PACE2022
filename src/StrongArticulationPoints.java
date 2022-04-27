@@ -1,10 +1,13 @@
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Stack;
 
 public class StrongArticulationPoints {
 
 	ReducedGraph rg;
-	static void articulations(ReducedGraph rg) {
+	//returns a strong articulation point if there is one, otherwise returns -1
+	static int articulations(ReducedGraph rg) {
+//		rg.condense(); //maybe worth?
 		StrongArticulationPoints sap = new StrongArticulationPoints();
 		sap.rg = rg;
 		int n = rg.N;
@@ -14,12 +17,49 @@ public class StrongArticulationPoints {
 		sap.best = new int[n];
 		sap.idom = new int[n];
 		sap.sdom = new int[n];
+		sap.reversal = false;
 		
-		int r = 0;
+		int r = 123456789 % n;//"random" seed for the root
 		while(rg.dropped[r])
-			r++;
-		System.out.println("Root = "+r);
+			r = (r+1)%n;
+		
+		if(Main_Load.VERBOSE)
+			System.out.println("Root = "+r);
+		
 		sap.semiNca(n, r);
+		
+		for(int i=0; i<n; i++) {
+			if(rg.dropped[i] || i==r)
+				continue;
+			if(sap.idom[i] != r) {
+				if(Main_Load.VERBOSE)
+					System.out.println("Articulation point (1) at "+sap.idom[i]);
+				return sap.idom[i];
+			}
+		}
+		
+		//Do the same on the reversal graph
+		Arrays.fill(sap.dfs_numbering, 0);
+		Arrays.fill(sap.reverse_dfn_numbering, 0);
+		Arrays.fill(sap.dfs_parent, 0);
+		Arrays.fill(sap.best, 0);
+		Arrays.fill(sap.idom, 0);
+		Arrays.fill(sap.sdom, 0);
+		sap.reversal = true;
+		
+		sap.semiNca(n, r);
+		
+		for(int i=0; i<n; i++) {
+			if(rg.dropped[i] || i==r)
+				continue;
+			if(sap.idom[i] != r) {
+				if(Main_Load.VERBOSE)
+					System.out.println("Articulation point (2) at "+sap.idom[i]);
+				return sap.idom[i];
+			}
+		}
+		
+		return -1;//in theory could check without the root, too. In practice though...
 	}
 
 	int[] dfs_numbering;
@@ -30,6 +70,7 @@ public class StrongArticulationPoints {
 	int[] idom, sdom;
 
 	int tick;
+	boolean reversal = false;
 
 	void dfs(int start) {
 		Stack<Integer> todo = new Stack<>();
@@ -42,7 +83,7 @@ public class StrongArticulationPoints {
 			
 			dfs_numbering[u] = tick;
 			reverse_dfn_numbering[tick++] = u;
-			for (int v : rg.eList[u]) {
+			for (int v : (reversal?rg.backEList:rg.eList)[u]) {
 				if (dfs_numbering[v] < 0) {
 					dfs_parent[v] = u;
 					todo.push(v);
@@ -88,13 +129,13 @@ public class StrongArticulationPoints {
 		tick = 0;
 		dfs(r);
 //		System.out.println("Final tick="+tick+", n="+n);
-		dumpDFS();
+//		dumpDFS();
 		
 		for (int i = tick; --i>0; ) {
 			int v = reverse_dfn_numbering[i];
 //			System.out.println("Loop i="+i+", v="+v+", opts="+new ArrayList(rg.backEList[v]));
 			sdom[v] = v;
-			for (int u : rg.backEList[v]) {
+			for (int u : (reversal?rg.eList:rg.backEList)[v]) {
 //				System.out.println("now u="+u+", dfn[u]="+dfs_numbering[u]);
 //				if (dfs_numbering[u] != -1) {
 //					System.out.println("Eval u="+u+", v="+v+", tick: i="+i);
@@ -106,12 +147,25 @@ public class StrongArticulationPoints {
 			best[v] = sdom[v];
 			idom[v] = dfs_parent[v];
 		}
+//		System.out.println("First IDOMs");
+//		dumpIDom();
 		for (int i = 1; i < tick; i++) {
 			int v = reverse_dfn_numbering[i];
-			while (dfs_numbering[idom[v]] > dfs_numbering[sdom[v]])
+			while (dfs_numbering[idom[v]] > dfs_numbering[sdom[v]]) {
+//				System.out.println(i+", "+v+", "+idom[v]+", "+sdom[v]);
+				if(v == idom[v]) {
+					System.out.println("Got stuck on this graph\n=======");
+//					rg.checkConsistency();
+					rg.dump();
+//					rg.dump_maskray();
+					System.exit(1);
+				}
 				idom[v] = idom[idom[v]];
+			}
 		}
-		dumpIDom();
+//		System.out.println("Return");
+		
+		
 	}
 
 	// based on http://maskray.me/blog/2020-12-11-dominator-tree

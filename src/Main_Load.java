@@ -21,8 +21,8 @@ public class Main_Load {
 	
 	boolean[] candidateDVFS;
 	
-	static final boolean TESTING = false;
-	static final boolean VERBOSE = TESTING && true;
+	static final boolean TESTING = true;
+	static final boolean VERBOSE = TESTING && false;
 	static final boolean HEURISTIC = true;
 	
 	static final boolean KILL_SELF = false;
@@ -193,7 +193,7 @@ public class Main_Load {
 		String prefix = "./heuristic_public/h_";
 //		String prefix = "./exact_public/e_";
 		int done=0;
-		for(int i=197; i<=197; i+=2) {
+		for(int i=1; i<=51; i+=2) {
 			long t0 = System.currentTimeMillis();
 			
 			String problem = prefix+"000".substring(Integer.toString(i).length())+i;
@@ -203,7 +203,7 @@ public class Main_Load {
 			BufferedReader reader = new BufferedReader(new FileReader(inName));
 			PrintStream fileout = new PrintStream(new FileOutputStream(outName));
 			
-			Thread selfkiller;
+//			Thread selfkiller;
 //			if(KILL_SELF) {
 //				selfkiller = new Thread("Killer") {
 //					public void run() {
@@ -229,8 +229,29 @@ public class Main_Load {
 			System.out.println();
 		}
 		long totalTime = System.currentTimeMillis() - startT; 
+		write_settings();
 		System.out.println("Geometric mean score: "+Math.pow(scoreProduct, 1.0/done));
 		System.out.println("Avg time: "+(totalTime/done)*0.001+"sec");
+	}
+	
+	public static void write_settings() {
+		System.out.println("CLEANUP_AFTER = "+GreedySolver.CLEANUP_AFTER);
+		System.out.println("CLEAN_WHEN_KILLED = "+GreedySolver.CLEAN_WHEN_KILLED);
+		System.out.println("CLEANUP_DIRECTION_FWD = "+GreedySolver.CLEANUP_DIRECTION_FWD);
+		System.out.println("USE_SCC = "+GreedySolver.USE_SCC);
+		System.out.println();
+		System.out.println("START_ARTICULATION_CHECK = "+GreedySolver.START_ARTICULATION_CHECK);
+		System.out.println("ARTICULATION_CHECK_FREQ = "+GreedySolver.ARTICULATION_CHECK_FREQ);
+		System.out.println("ARTICULATION_MIN_N = "+GreedySolver.ARTICULATION_MIN_N);
+		System.out.println();
+		System.out.println("FAST_SINKHORN_MARGIN = "+GreedySolver.FAST_SINKHORN_MARGIN);
+		System.out.println("DEGREE_HEURISTIC_SWITCH = "+GreedySolver.DEGREE_HEURISTIC_SWITCH);
+		System.out.println("CLEANUP_MARGIN = "+GreedySolver.CLEANUP_MARGIN);
+		System.out.println();
+		System.out.println("KILL_SELF = "+KILL_SELF);
+		System.out.println("HEURISTIC MODE? "+HEURISTIC);
+		System.out.println("MAX_TIME = "+MAX_TIME);
+		System.out.println();
 	}
 	
 	public static long msRemaining() { 

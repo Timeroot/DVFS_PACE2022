@@ -385,4 +385,24 @@ public class ReducedGraph {
 		}
 	}
 	
+	void dump_maskray() {
+		System.out.print(N);
+		int E = 0;
+		for(int i=0; i<N; i++) {
+			if(dropped[i])
+				continue;
+			E += inDeg[i];
+		}
+		System.out.println(" "+E);
+				
+		for(int i=0; i<N; i++) {
+			if(dropped[i])
+				continue;
+			for(int vo : eList[i]) {
+				System.out.print(i+" "+vo+" ");
+			}
+			System.out.println();
+		}
+	}
+	
 }
