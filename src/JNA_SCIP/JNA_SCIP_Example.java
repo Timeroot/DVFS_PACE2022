@@ -3,10 +3,10 @@ package JNA_SCIP;
 import static JNA_SCIP.JSCIP.SCIP_PARAMEMPHASIS.*;
 import static JNA_SCIP.JSCIP.SCIP_VARTYPE.*;
 
-public class JNA_SCIP {
+public class JNA_SCIP_Example {
 
 	public static void main(String[] args) {
-		JSCIP.create();		
+		JSCIP.create();
 		JSCIP.includeDefaultPlugins();
 		
 		JSCIP.infoMessage(null, "SCIP Loaded, \"%s\"\n", "Hello world");

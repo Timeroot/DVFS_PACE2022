@@ -21,9 +21,9 @@ public class Main_Load {
 	
 	boolean[] candidateDVFS;
 	
-	static final boolean TESTING = false;
+	static final boolean TESTING = true;
 	static final boolean VERBOSE = TESTING && false;
-	static final boolean HEURISTIC = true;
+	static final boolean HEURISTIC = false;
 	
 	static final boolean KILL_SELF = false;
 	static final long MAX_TIME = (HEURISTIC?10:30)*60*1000;
@@ -127,11 +127,13 @@ public class Main_Load {
 
 			sol = new GreedySolver().solve(rg);
 		
-		} else {
+		} else { //EXACT
+			
 			Graph g = new Graph(N, eList, backEList, inDeg, outDeg);
 			PruneLowdeg prune = new PruneLowdeg(g);
 			if(TESTING) System.out.println("Initial prune: N="+g.N);
-			sol = prune.solve(new SCIPSolver());
+//			sol = prune.solve(new SCIPSolver());
+			sol = prune.solve(new JNASCIPSolver());
 		}
 		
 		if(sol == null) {
@@ -190,12 +192,11 @@ public class Main_Load {
 	}
 	
 	public static void main_test(String[] args) throws IOException {
-		write_settings();
+//		write_settings();
 		long startT = System.currentTimeMillis();
-		String prefix = "./heuristic_public/h_";
-//		String prefix = "./exact_public/e_";
+		String prefix = HEURISTIC ? "./heuristic_public/h_" : "./exact_public/e_";
 		int done=0;
-		for(int i=1; i<=81; i+=2) {
+		for(int i=1; i<=7; i+=2) {
 			long t0 = System.currentTimeMillis();
 			
 			String problem = prefix+"000".substring(Integer.toString(i).length())+i;
@@ -231,8 +232,9 @@ public class Main_Load {
 			System.out.println();
 		}
 		long totalTime = System.currentTimeMillis() - startT; 
-		write_settings();
-		System.out.println("Geometric mean score: "+SCORE_PROD_SHIFT*Math.pow(scoreProduct, 1.0/done));
+//		write_settings();
+		if(HEURISTIC)
+			System.out.println("Geometric mean score: "+SCORE_PROD_SHIFT*Math.pow(scoreProduct, 1.0/done));
 		System.out.println("Avg time: "+(totalTime/done)*0.001+"sec");
 	}
 	

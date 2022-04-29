@@ -5,7 +5,7 @@ import com.sun.jna.Native;
 import com.sun.jna.Pointer;
 import com.sun.jna.ptr.PointerByReference;
 
-interface JSCIP extends Library {
+public interface JSCIP extends Library {
 	static JSCIP LIB = (JSCIP)Native.load("scip", JSCIP.class);
 	static PointerByReference pref = new PointerByReference();
 	static SCIP scip = new SCIP();
@@ -25,6 +25,16 @@ interface JSCIP extends Library {
 		SCIP_CONS cons = new SCIP_CONS();
 		CALL_SCIPcreateConsBasicLinear(scip, cons, name, nvars, vars, vals, lhs, rhs);
 		return cons;
+	}
+	
+	int SCIPaddCoefLinear(SCIP scip, SCIP_CONS cons, SCIP_VAR var, double val);
+	static void CALL_SCIPaddCoefLinear(SCIP scip, SCIP_CONS cons, SCIP_VAR var, double val) {
+		int retcode = LIB.SCIPaddCoefLinear(scip, cons, var, val);
+		if(retcode != SCIP_OKAY)
+			throw new RuntimeException("Error, retcode "+retcode);
+	}
+	static void addCoefLinear(SCIP_CONS cons, SCIP_VAR var, double val) {
+		CALL_SCIPaddCoefLinear(scip, cons, var, val);
 	}
 	
 	/* expr_var.h */
@@ -132,8 +142,37 @@ interface JSCIP extends Library {
 	static double infinity() { return LIB.SCIPinfinity(scip); }
 	
 	/* scip_param.h */
-	int SCIPsetRealParam(SCIP scip, String name, double value);//SCIP_RETCODE
-	int SCIPsetCharParam(SCIP scip, String name, byte value);//SCIP_RETCODE
+	int SCIPsetRealParam(SCIP scip, String name, double value);
+	static void CALL_SCIPsetRealParam(SCIP scip, String name, double value) {
+		int retcode = LIB.SCIPsetRealParam(scip, name, value);
+		if(retcode != SCIP_OKAY)
+			throw new RuntimeException("Error, retcode "+retcode);
+	};
+	static void setRealParam(String name, double value) { CALL_SCIPsetRealParam(scip, name, value); }
+	
+	int SCIPsetCharParam(SCIP scip, String name, byte value);
+	static void CALL_SCIPsetCharParam(SCIP scip, String name, byte value) {
+		int retcode = LIB.SCIPsetCharParam(scip, name, value);
+		if(retcode != SCIP_OKAY)
+			throw new RuntimeException("Error, retcode "+retcode);
+	};
+	static void setCharParam(String name, byte value) { CALL_SCIPsetCharParam(scip, name, value); }
+
+	int SCIPsetIntParam(SCIP scip, String name, int value);
+	static void CALL_SCIPsetIntParam(SCIP scip, String name, int value) {
+		int retcode = LIB.SCIPsetIntParam(scip, name, value);
+		if(retcode != SCIP_OKAY)
+			throw new RuntimeException("Error, retcode "+retcode);
+	};
+	static void setIntParam(String name, int value) { CALL_SCIPsetIntParam(scip, name, value); }
+
+	int SCIPsetLongintParam(SCIP scip, String name, long value);
+	static void CALL_SCIPsetLongintParam(SCIP scip, String name, long value) {
+		int retcode = LIB.SCIPsetLongintParam(scip, name, value);
+		if(retcode != SCIP_OKAY)
+			throw new RuntimeException("Error, retcode "+retcode);
+	};
+	static void setLongintParam(String name, long value) { CALL_SCIPsetLongintParam(scip, name, value); }
 	
 	int SCIPsetStringParam(SCIP scip, String name, String value);
 	static void CALL_SCIPsetStringParam(SCIP scip, String name, String value) {
@@ -150,6 +189,15 @@ interface JSCIP extends Library {
 			throw new RuntimeException("Error, retcode "+retcode);
 	};
 	static void setEmphasis(SCIP_PARAMEMPHASIS emph, boolean quiet) { CALL_SCIPsetEmphasis(scip, emph, quiet); }
+	
+	int SCIPsetPresolving(SCIP scip, int SCIP_PARAMSETTING, boolean quiet);
+	static void CALL_SCIPsetPresolving(SCIP scip, SCIP_PARAMSETTING emph, boolean quiet) {
+		int retcode = LIB.SCIPsetPresolving(scip, emph.ordinal(), quiet);
+		if(retcode != SCIP_OKAY)
+			throw new RuntimeException("Error, retcode "+retcode);
+	};
+	static void setPresolving(SCIP_PARAMSETTING emph, boolean quiet) { CALL_SCIPsetPresolving(scip, emph, quiet); }
+	
 	
 	/* scip_prob.h */
 	int SCIPreadProb(SCIP scip, String filename, String ext);
@@ -219,6 +267,14 @@ interface JSCIP extends Library {
 	}
 	
 	/* scip_solve.h */
+	int SCIPpresolve(SCIP scip);
+	static void CALL_SCIPpresolve(SCIP scip) {
+		int retcode = LIB.SCIPpresolve(scip);
+		if(retcode != SCIP_OKAY)
+			throw new RuntimeException("Error, retcode "+retcode);
+	}
+	static void presolve() { CALL_SCIPpresolve(scip); }
+	
 	int SCIPsolve(SCIP scip);
 	static void CALL_SCIPsolve(SCIP scip) {
 		int retcode = LIB.SCIPsolve(scip);
@@ -302,6 +358,15 @@ interface JSCIP extends Library {
 	    SCIP_VERBLEVEL_HIGH,          /**< a lot of information is displayed */
 	    SCIP_VERBLEVEL_FULL
     }
+    
+    /* type_paramset.h */
+    public static enum SCIP_PARAMSETTING
+    {
+       SCIP_PARAMSETTING_DEFAULT,
+       SCIP_PARAMSETTING_AGGRESSIVE,
+       SCIP_PARAMSETTING_FAST,
+       SCIP_PARAMSETTING_OFF
+    };
     
     public static enum SCIP_PARAMEMPHASIS {
     	SCIP_PARAMEMPHASIS_DEFAULT,
