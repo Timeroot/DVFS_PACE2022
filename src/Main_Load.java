@@ -196,7 +196,7 @@ public class Main_Load {
 		long startT = System.currentTimeMillis();
 		String prefix = HEURISTIC ? "./heuristic_public/h_" : "./exact_public/e_";
 		int done=0;
-		for(int i=1; i<=7; i+=2) {
+		for(int i=53; i<=81; i+=2) {
 			long t0 = System.currentTimeMillis();
 			
 			String problem = prefix+"000".substring(Integer.toString(i).length())+i;

@@ -10,7 +10,7 @@ public class JNA_test {
 		INSTANCE = (CLibrary)Native.loadLibrary("c", CLibrary.class);
 		System.out.println("Loaded "+INSTANCE);
 		int val = INSTANCE.atol("51") + 10;
-		System.out.println("Computed " + val);
+		System.out.println("Computed 51+10==" + val);
 	}
 	
 	public interface CLibrary extends Library {

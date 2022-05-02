@@ -1,9 +1,11 @@
-package JNA_SCIP;
+package JNA_SCIP.Examples;
 
-import static JNA_SCIP.JSCIP.SCIP_PARAMEMPHASIS.*;
-import static JNA_SCIP.JSCIP.SCIP_VARTYPE.*;
+import static JNA_SCIP.SCIP_PARAMEMPHASIS.*;
+import static JNA_SCIP.SCIP_VARTYPE.*;
 
-public class JNA_SCIP_Example {
+import JNA_SCIP.*;
+
+public class MILP_Example {
 
 	public static void main(String[] args) {
 		JSCIP.create();

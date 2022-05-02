@@ -12,24 +12,28 @@ public class SCIP extends PointerType {
 	}
 }
 
-//@FieldOrder({ "set", "interrupt", "dialoghdlr", "messagehdlr", "totaltime", "state" })
-//public class SCIP extends Structure {
-//	
-//	public SCIP() {
-//		super();
-//	}
-//	public SCIP(Pointer pointer) {
-//		super(pointer);
-//	}
-	
-//	public static class ByReference extends SCIP implements Structure.ByReference {}
+/*
+public class SCIP extends Structure implements Structure.ByReference {
+public SCIP() {}
+public SCIP(Pointer p) {
+	super(p);
+}
 
-//	public SCIP_MEM.ByReference mem;
-//	public Pointer set;
-//	public Pointer interrupt;
-//	public Pointer dialoghdlr;
-//	public Pointer messagehdlr;
-//	public Pointer totaltime;
-//	public Pointer state;
-	// etc.
-//}
+@Override
+protected List<String> getFieldOrder() {
+	//Be lazy and assume the compiler gives it in the right order...
+	return Stream.of(SCIP.class.getDeclaredFields()).filter(
+		x -> (x.getModifiers() & (Modifier.PUBLIC | Modifier.STATIC)) == Modifier.PUBLIC
+		).map(Field::getName).collect(Collectors.toList());
+}
+
+public Pointer mem;//SCIP_MEM.ByReference
+public Pointer set;
+public Pointer interrupt;
+public Pointer dialoghdlr;
+public Pointer messagehdlr;
+public Pointer totaltime;
+public Pointer stat;
+// etc.
+}
+*/

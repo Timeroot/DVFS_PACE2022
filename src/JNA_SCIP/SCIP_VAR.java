@@ -8,7 +8,24 @@ public class SCIP_VAR extends PointerType {
 	public SCIP_VAR(Pointer p) {
 		super(p);
 	}
-	
+}
+
+////Alternate version to make it a structure, with readable fields:
+
+//public class SCIP_VAR extends Structure implements Structure.ByReference {
+//	public SCIP_VAR() {}
+//	public SCIP_VAR(Pointer p) {
+//		super(p); read();
+//	}
+//	
+//	@Override
+//	protected List<String> getFieldOrder() {
+//		//Be lazy and assume the compiler gives it in the right order...
+//		return Stream.of(SCIP_VAR.class.getDeclaredFields()).filter(
+//			x -> (x.getModifiers() & (Modifier.PUBLIC | Modifier.STATIC)) == Modifier.PUBLIC
+//			).map(Field::getName).collect(Collectors.toList());
+//    }
+//	
 //	public double obj;                /**< objective function value of variable (might be changed temporarily in probing mode)*/
 //	public double unchangedobj;       /**< unchanged objective function value of variable (ignoring temporary changes in probing mode) */
 //	public double branchfactor;       /**< factor to weigh variable's branching score with */
@@ -27,4 +44,4 @@ public class SCIP_VAR extends PointerType {
 //	public double lazyub;             /**< global upper bound that is ensured by constraints and has not to be added to the LP */
 //	public double glbdom;             /**< domain of variable in global problem */
 //	public double locdom;             /**< domain of variable in current subproblem */
-}
+//	//etc.

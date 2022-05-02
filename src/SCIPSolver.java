@@ -13,8 +13,8 @@ public class SCIPSolver implements Solver {
 	int N;
 	
 	final String fileprefix;
-	static final boolean ECHO = false;
-	static final String SCIP_PATH = "./scip";//(Main_Load.TESTING ? "./extra_bin/scip" : "./scip");
+	static final boolean ECHO = true;
+	static final String SCIP_PATH = "./scip-8";//(Main_Load.TESTING ? "./extra_bin/scip" : "./scip");
 	
 	public SCIPSolver() {
 		this(getTMPName());

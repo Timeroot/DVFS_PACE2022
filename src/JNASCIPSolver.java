@@ -4,16 +4,19 @@ import java.util.ArrayList;
 import JNA_SCIP.JSCIP;
 import JNA_SCIP.SCIP_CONS;
 import JNA_SCIP.SCIP_SOL;
+import JNA_SCIP.SCIP_STATUS;
 import JNA_SCIP.SCIP_VAR;
-import JNA_SCIP.JSCIP.SCIP_STATUS;
-import static JNA_SCIP.JSCIP.SCIP_VARTYPE.*;
-import static JNA_SCIP.JSCIP.SCIP_PARAMSETTING.*;
-import static JNA_SCIP.JSCIP.SCIP_STATUS.*;
+
+import static JNA_SCIP.SCIP_PARAMSETTING.*;
+import static JNA_SCIP.SCIP_STATUS.*;
+import static JNA_SCIP.SCIP_VARTYPE.*;
 
 public class JNASCIPSolver implements Solver {
 
 	ArrayList<int[]> cycleList = new ArrayList<int[]>();
 	int N;
+	int cycle_i;
+	SCIP_VAR[] vars;
 	
 	static final boolean ECHO = false;
 	
@@ -24,19 +27,34 @@ public class JNASCIPSolver implements Solver {
 	int node_limit = 10;
 	@Override
 	public ArrayList<Integer> solve(Graph g) {
-		N = g.N;
+		//SCIP initialization
+		JSCIP.create();
+		if(!ECHO)
+			JSCIP.printVersion(null);
+		JSCIP.includeDefaultPlugins();
+		JSCIP.createProbBasic("prob");
+		if(!ECHO)
+			JSCIP.setIntParam("display/verblevel", 0);
 		
-		//first get a cycle using the base graph (no tentative solution).
+		N = g.N;
+		cycle_i = 0;
+		
+		//Allocate variables
+		vars = new SCIP_VAR[N];
+		for(int i=0; i<N; i++) {
+			//Each variable has objective weight of 1.0
+			vars[i] = JSCIP.createVarBasic("v"+i, 0, 1, 1.0, SCIP_VARTYPE_BINARY);
+			JSCIP.addVar(vars[i]);
+		}
+		
+		//first get a few cycle using the base graph (no tentative solution).
 		
 		ArrayList<Integer> trySol = new ArrayList<Integer>();
-//		boolean isAcyc = digForCycles(g, trySol, GenCyclesMode.EDGE_DFS_GENEROUS);
-		
 		boolean isAcyc = false;
 		findTriangles(g);
 		
 		GenCyclesMode mode = GenCyclesMode.EDGE_DFS_GENEROUS;
 		if(Main_Load.TESTING) System.out.println("Operating in mode "+mode);
-		
 		
 		while(!isAcyc) {
 			SCIP_STATUS scip_status = getSCIPSolution(trySol);
@@ -56,13 +74,21 @@ public class JNASCIPSolver implements Solver {
 					if(Main_Load.TESTING) System.out.println("Up time_limit to "+time_limit);
 					if(time_limit > 3000) {
 						if(Main_Load.TESTING) System.out.println("FAILED TO FIND SOLUTION IN TIME LIMIT");
-						return null;
+						trySol = null;
+						break;
 					}
 					isAcyc = false;
 					continue;
 				}
 			}
 		}
+
+		//SCIP cleanup
+		for(int i=0; i<N; i++) {
+			JSCIP.releaseVar(vars[i]);
+		}
+		JSCIP.free();
+		
 		return trySol;
 	}
 
@@ -73,27 +99,13 @@ public class JNASCIPSolver implements Solver {
 	}
 	
 	SCIP_STATUS getSCIPSolution(ArrayList<Integer> res) {
-		JSCIP.create();
-		JSCIP.includeDefaultPlugins();
-		JSCIP.createProbBasic("prob");
-		JSCIP.setIntParam("display/verblevel", 0);
-		
 		double inf = JSCIP.infinity();
 		
-		//Create variables
-		SCIP_VAR[] vars = new SCIP_VAR[N];
-		for(int i=0; i<N; i++) {
-			//Each variable has objective weight of 1.0
-			vars[i] = JSCIP.createVarBasic("v"+i, 0, 1, 1.0, SCIP_VARTYPE_BINARY);
-			JSCIP.addVar(vars[i]);
-		}
-
 		//Constraints
 		//Each cycle has at least one variable true
-		int cons_i = 0;
-		for(int[] arr : cycleList) {
-			SCIP_CONS cons = JSCIP.createConsBasicLinear("cons"+cons_i, 0, null, null, 1, inf);
-			cons_i ++;
+		for( ; cycle_i < cycleList.size(); cycle_i++ ) {
+			int[] arr = cycleList.get(cycle_i);
+			SCIP_CONS cons = JSCIP.createConsBasicLinear("cons"+cycle_i, 0, null, null, 1, inf);
 			
 			for(int v : arr) {
 				JSCIP.addCoefLinear(cons, vars[v], 1.0);
@@ -102,7 +114,7 @@ public class JNASCIPSolver implements Solver {
 			JSCIP.releaseCons(cons);
 		}
 
-		JSCIP.setPresolving(SCIP_PARAMSETTING_AGGRESSIVE, true);
+		JSCIP.setPresolving(SCIP_PARAMSETTING_AGGRESSIVE, !ECHO);
 //		JSCIP.setEmphasis(emph, quiet);
 		
 		JSCIP.setLongintParam("limits/nodes", node_limit);
@@ -113,38 +125,16 @@ public class JNASCIPSolver implements Solver {
 		
 		SCIP_SOL sol = JSCIP.getBestSol();
 		
-		SCIP_STATUS scip_status = null;
-		
-//			if(line1.contentEquals("solution status: infeasible")) {
-//				throw new RuntimeException("SCIP Reported infeasible problem in "+lpName);
-//			} else if(line1.contentEquals("solution status: optimal solution found")) {
-//				scip_status = SCIP_STATUS.OPTIMAL;
-//			} else if(line1.contentEquals("solution status: node limit reached")) {
-//				scip_status = SCIP_STATUS.NODE_LIMIT;
-//			} else  if(line1.contentEquals("solution status: time limit reached")) {
-//				scip_status = SCIP_STATUS.TIME_LIMIT;
-//			} else {
-//				if(Main_Load.TESTING) System.out.println("SCIP gave "+line1);
-//				throw new RuntimeException("SCIP gave "+line1);
-//			}
-//			scipSolReader.readLine();
+		SCIP_STATUS scip_status = JSCIP.getStatus();
 			
 		//Save the variables
-		scip_status = JSCIP.getStatus();
-		res.clear();
-		
+		res.clear();		
 		for(int i=0; i<N; i++) {
 			double val = JSCIP.getSolVal(sol, vars[i]);
-			if(val > 0) {
+			if(val > 0.5) {
 				res.add(i);
 			}
 		}
-
-		for(int i=0; i<N; i++) {
-			JSCIP.releaseVar(vars[i]);
-		}
-		
-		JSCIP.free();
 
 		if(Main_Load.TESTING) System.out.println("SCIP solved with "+cycleList.size()+" cycles and gave "+res.size()+" vertices. "+scip_status);
 
