@@ -1,2 +1,3 @@
 #!/bin/bash
-tar -czvf solution.tgz solution bin/*
+cp extra-bin/libscip-vm.so bin/libscip.so
+tar -czvf solution.tgz solution bin/* jna-5.11.0.jar jna-platform-5.11.0.jar
