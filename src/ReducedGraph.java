@@ -241,6 +241,43 @@ public class ReducedGraph {
         return false;
     }
 	
+	//Force a vertex to be in DFVS by adding self-loop
+	void addSelfLoop(int v0) {
+		if(dropped[v0])
+			throw new RuntimeException("Can't add a self-loop to a dropped vertex");
+		eList[v0].add(v0);
+		backEList[v0].add(v0);
+		inDeg[v0]++;
+		outDeg[v0]++;
+	}
+	
+	//Force a vertex to *not* be in DFVS but contracting its edges through, and dropping it
+	void contractIn(int v0) {
+		if(dropped[v0])
+			throw new RuntimeException("Can't contract in to a dropped vertex");
+		HashSet<Integer> outEs = eList[v0];
+		HashSet<Integer> inEs = backEList[v0];
+		if(outEs.contains(v0))
+			throw new RuntimeException("Can't contract in a vertex with a self-loop");
+		//Add the new edges
+		for(int out : outEs) {
+			backEList[out].remove(v0);
+			backEList[out].addAll(inEs);
+			inDeg[out] = backEList[out].size();
+		}
+		for(int in : inEs) {
+			eList[in].remove(v0);
+			eList[in].addAll(outEs);
+			outDeg[in] = eList[in].size();
+		}
+		//Clear out v0
+		dropped[v0] = true;
+		dropped_Size++;
+		eList[v0].clear();
+		backEList[v0].clear();
+		inDeg[v0] = outDeg[v0] = 0;
+	}
+	
 	//Uses components in an SCC decomposition to break into two smaller graphs.
 	//if passOnMustFVS is true, then marked vertices get passed into the first subgraph.
 	//if false, nothing gets them, and they must be collected from original graph by caller.

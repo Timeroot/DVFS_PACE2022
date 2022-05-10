@@ -10,7 +10,7 @@ import com.sun.jna.ptr.PointerByReference;
 
 import JNA_SCIP.*;
 
-public class Conshdlr_Example {
+public class Conshdlr_Direct {
 
 	//Toy example of using a custom constraint handler.
 	//The problem we solve is:
@@ -32,7 +32,7 @@ public class Conshdlr_Example {
 		
 		SCIP_DECL_CONSCHECK conscheck_hdlr = new SCIP_DECL_CONSCHECK() {
 			@Override
-			public SCIP_RETCODE invoke(SCIP scip, SCIP_CONSHDLR conshdlr, Pointer conss, int nconss, SCIP_SOL sol,
+			public SCIP_RETCODE conscheck(SCIP scip, SCIP_CONSHDLR conshdlr, Pointer conss, int nconss, SCIP_SOL sol,
 					boolean checkintegrality, boolean checklprows, boolean printreason, boolean completely,
 					IntByReference scip_result) {
 				
@@ -54,7 +54,7 @@ public class Conshdlr_Example {
 
 		SCIP_DECL_CONSENFOLP consenfolp_hdlr = new SCIP_DECL_CONSENFOLP() {
 			@Override
-			public SCIP_RETCODE invoke(SCIP scip, SCIP_CONSHDLR conshdlr, Pointer conss, int nconss, int nusefulconss,
+			public SCIP_RETCODE consenfolp(SCIP scip, SCIP_CONSHDLR conshdlr, Pointer conss, int nconss, int nusefulconss,
 					boolean solinfeasible, IntByReference scip_result) {
 
 				SCIP_CONS cons = new SCIP_CONS(conss.getPointer(0));
@@ -75,7 +75,7 @@ public class Conshdlr_Example {
 
 		SCIP_DECL_CONSENFOPS consenfops_hdlr = new SCIP_DECL_CONSENFOPS() {
 			@Override
-			public SCIP_RETCODE invoke(SCIP scip, SCIP_CONSHDLR conshdlr, Pointer conss, int nconss, int nusefulconss,
+			public SCIP_RETCODE consenfops(SCIP scip, SCIP_CONSHDLR conshdlr, Pointer conss, int nconss, int nusefulconss,
 					boolean solinfeasible, boolean objinfeasible, IntByReference scip_result) {
 				System.out.println("CONSENFOPS called");
 				
@@ -85,11 +85,12 @@ public class Conshdlr_Example {
 
 		SCIP_DECL_CONSLOCK conslock_hdlr = new SCIP_DECL_CONSLOCK() {
 			@Override
-			public SCIP_RETCODE invoke(SCIP scip, SCIP_CONSHDLR conshdlr, SCIP_CONS cons, int SCIP_LOCKTYPE, int nlockspos,
-					int nlocksneg) {
+			public SCIP_RETCODE conslock(SCIP scip, SCIP_CONSHDLR conshdlr, SCIP_CONS cons, SCIP_LOCKTYPE locktype,
+					int nlockspos, int nlocksneg) {
 				//Our constraint could be violated by increasing x, so mark it with a "lock" here
 				//If could be violated by decreasing x, swap nlockspos and nlocksneg.
 				//If could be violated either way, use nlockpos+nlocksneg
+				System.out.println("Conslock on "+cons);
 				Pointer consdata = JSCIP.consGetData(cons);
 				SCIP_VAR var = new SCIP_VAR(consdata);
 				JSCIP.addVarLocksType(var, SCIP_LOCKTYPE_MODEL, nlocksneg, nlockspos);
@@ -100,7 +101,7 @@ public class Conshdlr_Example {
 		
 		SCIP_DECL_CONSDELETE consdelete_hdlr = new SCIP_DECL_CONSDELETE() {
 			@Override
-			public SCIP_RETCODE invoke(SCIP scip, SCIP_CONSHDLR conshdlr, SCIP_CONS cons, PointerByReference consdata) {
+			public SCIP_RETCODE consdelete(SCIP scip, SCIP_CONSHDLR conshdlr, SCIP_CONS cons, PointerByReference consdata) {
 				//Release the variable we were holding
 				SCIP_VAR var = new SCIP_VAR(consdata.getValue());
 				JSCIP.releaseVar(var);
@@ -131,9 +132,9 @@ public class Conshdlr_Example {
 	
 	static SCIP_CONS makeMyCons(SCIP_CONSHDLR conshdlr, SCIP_VAR x) {
 		JSCIP.captureVar(x);
-		//JSCIP.freeVar() zeros out the pointer, which is why we 'copy' it here.
 		SCIP_CONS cons_inst = JSCIP.createCons("mycons", conshdlr, x.getPointer(),
 				false, true, true, true, true, false, false, false, true, true);
+		System.out.println("Created cons "+cons_inst);
 		return cons_inst;
 	}
 }

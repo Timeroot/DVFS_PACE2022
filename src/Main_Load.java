@@ -10,7 +10,6 @@ import java.util.HashSet;
 import sun.misc.Signal;
 import sun.misc.SignalHandler;
 
-@SuppressWarnings("restriction")
 public class Main_Load {
 	
 	int N;
@@ -130,10 +129,12 @@ public class Main_Load {
 		} else { //EXACT
 			
 			Graph g = new Graph(N, eList, backEList, inDeg, outDeg);
-			PruneLowdeg prune = new PruneLowdeg(g);
-			if(TESTING) System.out.println("Initial prune: N="+g.N);
+//			PruneLowdeg prune = new PruneLowdeg(g);
+//			if(TESTING) System.out.println("Initial prune: N="+g.N);
 //			sol = prune.solve(new SCIPSolver());
-			sol = prune.solve(new JNASCIPSolver());
+//			sol = prune.solve(new JNASCIPSolver_Dumb());
+//			sol = prune.solve(new JNASCIPSolver());
+			sol = ExactSolver.solve(g);
 		}
 		
 		if(sol == null) {
@@ -196,7 +197,7 @@ public class Main_Load {
 		long startT = System.currentTimeMillis();
 		String prefix = HEURISTIC ? "./heuristic_public/h_" : "./exact_public/e_";
 		int done=0;
-		for(int i=53; i<=81; i+=2) {
+		for(int i=37; i<=37; i+=2) {//#37 (78s)
 			long t0 = System.currentTimeMillis();
 			
 			String problem = prefix+"000".substring(Integer.toString(i).length())+i;

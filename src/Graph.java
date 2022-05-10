@@ -19,6 +19,14 @@ public class Graph {
 		outDeg = outDeg_;
 	}
 	
+	//Sets graph to be a copy of given reduced graph. Returns int[] mapping back to vertices
+	static Graph fromReducedGraph(ReducedGraph rg){
+		rg.condense();
+		int N = rg.N;
+		return new Graph(N, cloneList(rg.eList), cloneList(rg.backEList),
+				Arrays.copyOf(rg.inDeg,N), Arrays.copyOf(rg.outDeg, N));
+	}
+	
 	void checkConsistency() {
 		if(!CHECK)
 			return;
@@ -58,15 +66,20 @@ public class Graph {
 		outDeg[v1]--;
 		inDeg[v2]--;
 	}
-	
+
 	@SuppressWarnings("unchecked")
-	Graph copy() {
-		HashSet<Integer>[] newEList = new HashSet[N];
-		HashSet<Integer>[] newBackEList = new HashSet[N];
+	private static HashSet<Integer>[] cloneList(HashSet<Integer>[] arr){
+		int N = arr.length;
+		HashSet<Integer>[] newArr = new HashSet[N];
 		for(int i=0; i<N; i++) {
-			newEList[i] = (HashSet<Integer>) eList[i].clone();
-			newBackEList[i] = (HashSet<Integer>) backEList[i].clone();
+			newArr[i] = (HashSet<Integer>) arr[i].clone();
 		}
+		return newArr;
+	}
+	
+	Graph copy() {
+		HashSet<Integer>[] newEList = cloneList(eList);
+		HashSet<Integer>[] newBackEList = cloneList(backEList);
 		return new Graph(N, newEList, newBackEList, Arrays.copyOf(inDeg,N), Arrays.copyOf(outDeg,N));
 	}
 
@@ -107,4 +120,28 @@ public class Graph {
 
 		return null;
 	}
+
+	private boolean hasCycleHelper(int i, boolean[] visited, boolean[] inPath) {
+		if (inPath[i])
+			return true;
+		if (visited[i])
+			return false;
+		visited[i] = true;
+		inPath[i] = true;
+		for (Integer c : eList[i])
+			if (hasCycleHelper(c, visited, inPath))
+				return true;
+		inPath[i] = false;
+		return false;
+	}
+
+	//Similar to findCycleDFS but just finding one
+	boolean hasCycle() {
+        boolean[] visited = new boolean[N];
+        boolean[] recStack = new boolean[N];        
+        for (int i = 0; i < N; i++)
+            if(hasCycleHelper(i, visited, recStack))
+                return true;
+        return false;
+    }
 }

@@ -31,10 +31,10 @@ public class MILP_Example {
 		SCIP_VAR y = JSCIP.createVarBasic("y", 0, inf, -30.0, SCIP_VARTYPE_CONTINUOUS);
 		JSCIP.addVar(y);
 		
-		SCIP_CONS cons_1 = JSCIP.createConsBasicLinear("cons1", 2, new SCIP_VAR[]{x,y}, new double[]{1,3}, -inf, 12);
+		SCIP_CONS cons_1 = JSCIP.createConsBasicLinear("cons1", new SCIP_VAR[]{x,y}, new double[]{1,3}, -inf, 12);
 		JSCIP.addCons(cons_1);
 
-		SCIP_CONS cons_2 = JSCIP.createConsBasicLinear("cons2", 2, new SCIP_VAR[]{x,y}, new double[]{3,1}, -inf, 16);
+		SCIP_CONS cons_2 = JSCIP.createConsBasicLinear("cons2", new SCIP_VAR[]{x,y}, new double[]{3,1}, -inf, 16);
 		JSCIP.addCons(cons_2);
 
 		JSCIP.releaseVar(x);
@@ -49,5 +49,6 @@ public class MILP_Example {
 		JSCIP.printSol(JSCIP.getBestSol(), null, false);
 		
 		JSCIP.free();
+		throw new RuntimeException("Success");
 	}
 }

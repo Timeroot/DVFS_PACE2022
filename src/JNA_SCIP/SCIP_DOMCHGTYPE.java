@@ -1,0 +1,8 @@
+package JNA_SCIP;
+
+/* type_var.h */
+public enum SCIP_DOMCHGTYPE {
+   SCIP_DOMCHGTYPE_DYNAMIC,
+   SCIP_DOMCHGTYPE_BOTH,
+   SCIP_DOMCHGTYPE_BOUND,
+}

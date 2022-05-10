@@ -16,7 +16,7 @@ public class SCC {
 	//If SCC() returns false, it will be unmodified or cleared.
 	
 	ArrayList<ArrayList<Integer>> sccInfo = new ArrayList<>();
-	boolean SCC(ReducedGraph g) {
+	boolean doSCC(ReducedGraph g) {
 		int SCC_time_temp;
 		int[] disc = new int[g.N];
 		int[] low = new int[g.N];

@@ -41,8 +41,7 @@ public enum SCIP_RETCODE {
 		// Singleton
 		public static final RETCODE_Converter inst = new RETCODE_Converter();
 
-		private RETCODE_Converter() {
-		}
+		private RETCODE_Converter() {}
 
 		@Override
 		public SCIP_RETCODE fromNative(Object input, FromNativeContext context) {
@@ -56,7 +55,7 @@ public enum SCIP_RETCODE {
 
 		@Override
 		public Class<Integer> nativeType() {
-			return Integer.class;
+			return int.class;
 		}
 	}
 }

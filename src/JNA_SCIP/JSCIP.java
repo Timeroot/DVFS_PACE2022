@@ -14,29 +14,36 @@ import com.sun.jna.ptr.PointerByReference;
 import static JNA_SCIP.SCIP_RETCODE.*;
 
 public interface JSCIP extends Library {
-	static TypeMapper scip_TypeMapper = new DefaultTypeMapper() {
+	public static final TypeMapper TYPE_MAPPER = new DefaultTypeMapper() {
         {
+        	addTypeConverter(SCIP_BOUNDCHGTYPE.class, new EnumConverter<SCIP_BOUNDCHGTYPE>(SCIP_BOUNDCHGTYPE.class));
+        	addTypeConverter(SCIP_DOMCHGTYPE.class, new EnumConverter<SCIP_DOMCHGTYPE>(SCIP_DOMCHGTYPE.class));
         	addTypeConverter(SCIP_LINCONSTYPE.class, new EnumConverter<SCIP_LINCONSTYPE>(SCIP_LINCONSTYPE.class));
+        	addTypeConverter(SCIP_LOCKTYPE.class, new EnumConverter<SCIP_LOCKTYPE>(SCIP_LOCKTYPE.class));
             addTypeConverter(SCIP_PARAMEMPHASIS.class, new EnumConverter<SCIP_PARAMEMPHASIS>(SCIP_PARAMEMPHASIS.class));
             addTypeConverter(SCIP_PARAMSETTING.class, new EnumConverter<SCIP_PARAMSETTING>(SCIP_PARAMSETTING.class));
+            addTypeConverter(SCIP_PROPTIMING.class, new EnumConverter<SCIP_PROPTIMING>(SCIP_PROPTIMING.class));
             addTypeConverter(SCIP_RESULT.class, new EnumConverter<SCIP_RESULT>(SCIP_RESULT.class));
             addTypeConverter(SCIP_STATUS.class, new EnumConverter<SCIP_STATUS>(SCIP_STATUS.class));
+            addTypeConverter(SCIP_VARSTATUS.class, new EnumConverter<SCIP_VARSTATUS>(SCIP_VARSTATUS.class));
             addTypeConverter(SCIP_VARTYPE.class, new EnumConverter<SCIP_VARTYPE>(SCIP_VARTYPE.class));
             addTypeConverter(SCIP_VERBLEVEL.class, new EnumConverter<SCIP_VERBLEVEL>(SCIP_VERBLEVEL.class));
-            //weird one needs a special converter
+            //weird ones that need a special converter
             addTypeConverter(SCIP_RETCODE.class, SCIP_RETCODE.RETCODE_Converter.inst);
+            addTypeConverter(SCIP_HEURTIMING.class, SCIP_HEURTIMING.HEURTIMING_Converter.inst);
         }
     };
-	static JSCIP LIB = (JSCIP)Native.load("scip", JSCIP.class,
+    
+	static JSCIP LIB = Native.load("scip", JSCIP.class,
 		new HashMap<String, Object>() {
 			private static final long serialVersionUID = -8766823852974891689L;
 		{
-		    put(Library.OPTION_TYPE_MAPPER, scip_TypeMapper);
+		    put(Library.OPTION_TYPE_MAPPER, TYPE_MAPPER);
 		}
     });
 	
 	static SCIP scip = new SCIP();
-	
+
 	/* cons.h */
 	String SCIPconsGetName(SCIP_CONS cons);
 	static String consGetName(SCIP_CONS cons){ return LIB.SCIPconsGetName(cons); }
@@ -62,6 +69,36 @@ public interface JSCIP extends Library {
 	boolean SCIPconsIsAdded(SCIP_CONS cons);
 	static boolean consIsAdded(SCIP_CONS cons){ return LIB.SCIPconsIsAdded(cons); }
 	
+	boolean SCIPconsIsInitial(SCIP_CONS cons);
+	static boolean consIsInitial(SCIP_CONS cons){ return LIB.SCIPconsIsInitial(cons); }
+	
+	boolean SCIPconsIsSeparated(SCIP_CONS cons);
+	static boolean consIsSeparated(SCIP_CONS cons){ return LIB.SCIPconsIsSeparated(cons); }
+	
+	boolean SCIPconsIsEnforced(SCIP_CONS cons);
+	static boolean consIsEnforced(SCIP_CONS cons){ return LIB.SCIPconsIsEnforced(cons); }
+	
+	boolean SCIPconsIsChecked(SCIP_CONS cons);
+	static boolean consIsChecked(SCIP_CONS cons){ return LIB.SCIPconsIsChecked(cons); }
+	
+	boolean SCIPconsIsPropagated(SCIP_CONS cons);
+	static boolean consIsPropagated(SCIP_CONS cons){ return LIB.SCIPconsIsPropagated(cons); }
+	
+	boolean SCIPconsIsLocal(SCIP_CONS cons);
+	static boolean consIsLocal(SCIP_CONS cons){ return LIB.SCIPconsIsLocal(cons); }
+	
+	boolean SCIPconsIsModifiable(SCIP_CONS cons);
+	static boolean consIsModifiable(SCIP_CONS cons){ return LIB.SCIPconsIsModifiable(cons); }
+	
+	boolean SCIPconsIsDynamic(SCIP_CONS cons);
+	static boolean consIsDynamic(SCIP_CONS cons){ return LIB.SCIPconsIsDynamic(cons); }
+	
+	boolean SCIPconsIsRemovable(SCIP_CONS cons);
+	static boolean consIsRemovable(SCIP_CONS cons){ return LIB.SCIPconsIsRemovable(cons); }
+	
+	boolean SCIPconsIsStickingAtNode(SCIP_CONS cons);
+	static boolean consIsStickingAtNode(SCIP_CONS cons){ return LIB.SCIPconsIsStickingAtNode(cons); }
+	
 	boolean SCIPconsIsObsolete(SCIP_CONS cons);
 	static boolean consIsObsolete(SCIP_CONS cons){ return LIB.SCIPconsIsObsolete(cons); }
 	
@@ -80,22 +117,48 @@ public interface JSCIP extends Library {
 	Pointer SCIPconshdlrGetData(SCIP_CONSHDLR cons);
 	static Pointer conshdlrGetData(SCIP_CONSHDLR cons){ return LIB.SCIPconshdlrGetData(cons); }
 	
+	double SCIPconshdlrGetSetupTime(SCIP_CONSHDLR conshdlr);
+	static double conshdlrGetSetupTime(SCIP_CONSHDLR conshdlr){ return LIB.SCIPconshdlrGetSetupTime(conshdlr); }
+	
+	double SCIPconshdlrGetPresolTime(SCIP_CONSHDLR conshdlr);
+	static double conshdlrGetPresolTime(SCIP_CONSHDLR conshdlr){ return LIB.SCIPconshdlrGetPresolTime(conshdlr); }
+	
+	double SCIPconshdlrGetSepaTime(SCIP_CONSHDLR conshdlr);
+	static double conshdlrGetSepaTime(SCIP_CONSHDLR conshdlr){ return LIB.SCIPconshdlrGetSepaTime(conshdlr); }
+	
+	double SCIPconshdlrGetEnfoLPTime(SCIP_CONSHDLR conshdlr);
+	static double conshdlrGetEnfoLPTime(SCIP_CONSHDLR conshdlr){ return LIB.SCIPconshdlrGetEnfoLPTime(conshdlr); }
+	
+	double SCIPconshdlrGetEnfoPSTime(SCIP_CONSHDLR conshdlr);
+	static double conshdlrGetEnfoPSTime(SCIP_CONSHDLR conshdlr){ return LIB.SCIPconshdlrGetEnfoPSTime(conshdlr); }
+	
+	double SCIPconshdlrGetEnfoRelaxTime(SCIP_CONSHDLR conshdlr);
+	static double conshdlrGetEnfoRelaxTime(SCIP_CONSHDLR conshdlr){ return LIB.SCIPconshdlrGetEnfoRelaxTime(conshdlr); }
+	
+	double SCIPconshdlrGetPropTime(SCIP_CONSHDLR conshdlr);
+	static double conshdlrGetPropTime(SCIP_CONSHDLR conshdlr){ return LIB.SCIPconshdlrGetPropTime(conshdlr); }
+	
+	double SCIPconshdlrGetCheckTime(SCIP_CONSHDLR conshdlr);
+	static double conshdlrGetCheckTime(SCIP_CONSHDLR conshdlr){ return LIB.SCIPconshdlrGetCheckTime(conshdlr); }
+	
+	double SCIPconshdlrGetRespropTime(SCIP_CONSHDLR conshdlr);
+	static double conshdlrGetRespropTime(SCIP_CONSHDLR conshdlr){ return LIB.SCIPconshdlrGetRespropTime(conshdlr); }
+	
 	/* cons_linear.h */
 	SCIP_RETCODE SCIPcreateConsBasicLinear (SCIP scip, PointerByReference cons, String name,
 			int nvars, SCIP_VAR[] vars, double[] vals, double lhs, double rhs);
 	static void CALL_SCIPcreateConsBasicLinear(SCIP scip, SCIP_CONS cons, String name,
-			int nvars, SCIP_VAR[] vars, double[] vals, double lhs, double rhs) {
+			SCIP_VAR[] vars, double[] vals, double lhs, double rhs) {
 		PointerByReference pref = new PointerByReference();
 		pref.setValue(cons.getPointer());
-		SCIP_RETCODE ret = LIB.SCIPcreateConsBasicLinear(scip, pref, name, nvars, vars, vals, lhs, rhs);
+		SCIP_RETCODE ret = LIB.SCIPcreateConsBasicLinear(scip, pref, name, vars==null?0:vars.length, vars, vals, lhs, rhs);
 		if(ret != SCIP_OKAY)
 			throw new RuntimeException("Error, retcode "+ret);
 		cons.setPointer(pref.getValue());
 	}
-	static SCIP_CONS createConsBasicLinear(String name,
-			int nvars, SCIP_VAR[] vars, double[] vals, double lhs, double rhs) {
+	static SCIP_CONS createConsBasicLinear(String name, SCIP_VAR[] vars, double[] vals, double lhs, double rhs) {
 		SCIP_CONS cons = new SCIP_CONS();
-		CALL_SCIPcreateConsBasicLinear(scip, cons, name, nvars, vars, vals, lhs, rhs);
+		CALL_SCIPcreateConsBasicLinear(scip, cons, name, vars, vals, lhs, rhs);
 		return cons;
 	}
 	
@@ -107,6 +170,41 @@ public interface JSCIP extends Library {
 	}
 	static void addCoefLinear(SCIP_CONS cons, SCIP_VAR var, double val) {
 		CALL_SCIPaddCoefLinear(scip, cons, var, val);
+	}
+	
+	/* cons_logicor.h */
+	SCIP_RETCODE SCIPcreateConsBasicLogicor(SCIP scip, PointerByReference cons,
+			String name, int nvars, SCIP_VAR[] vars);
+	static void CALL_SCIPcreateConsBasicLogicor(SCIP scip, SCIP_CONS cons, String name, SCIP_VAR[] vars) {
+		PointerByReference pref = new PointerByReference();
+		pref.setValue(cons.getPointer());
+		SCIP_RETCODE ret = LIB.SCIPcreateConsBasicLogicor(scip, pref, name, vars==null?0:vars.length, vars);
+		if(ret != SCIP_OKAY)
+			throw new RuntimeException("Error, retcode "+ret);
+		cons.setPointer(pref.getValue());
+	}
+	static SCIP_CONS createConsBasicLogicor(String name, SCIP_VAR[] vars) {
+		SCIP_CONS cons = new SCIP_CONS();
+		CALL_SCIPcreateConsBasicLogicor(scip, cons, name, vars);
+		return cons;
+	}
+	
+	/* cons_setppc.h */
+	SCIP_RETCODE SCIPcreateConsBasicSetcover(SCIP scip, PointerByReference cons,
+			String name, int nvars, SCIP_VAR[] vars);
+	static void CALL_SCIPcreateConsBasicSetcover(SCIP scip, SCIP_CONS cons, String name,
+			SCIP_VAR[] vars) {
+		PointerByReference pref = new PointerByReference();
+		pref.setValue(cons.getPointer());
+		SCIP_RETCODE ret = LIB.SCIPcreateConsBasicSetcover(scip, pref, name, vars==null?0:vars.length, vars);
+		if(ret != SCIP_OKAY)
+			throw new RuntimeException("Error, retcode "+ret);
+		cons.setPointer(pref.getValue());
+	}
+	static SCIP_CONS createConsBasicSetcover(String name, SCIP_VAR[] vars) {
+		SCIP_CONS cons = new SCIP_CONS();
+		CALL_SCIPcreateConsBasicSetcover(scip, cons, name, vars);
+		return cons;
 	}
 	
 	/* expr_var.h */
@@ -126,6 +224,13 @@ public interface JSCIP extends Library {
 		CALL_SCIPcreateExprVar(scip, expr, var, ownercreate, ownercreatedata);
 		return expr;
 	}
+	
+	/* heur.h */
+	double SCIPheurGetSetupTime(SCIP_HEUR scip_heur);
+	static double heurGetSetupTime(SCIP_HEUR scip_heur) { return LIB.SCIPheurGetSetupTime(scip_heur); }
+	
+	double SCIPheurGetTime(SCIP_HEUR scip_heur);
+	static double heurGetTime(SCIP_HEUR scip_heur) { return LIB.SCIPheurGetTime(scip_heur); }
 	
 	/* pub_message.h */
 	void SCIPmessagePrintError(String fmt, Object... vals);
@@ -181,6 +286,19 @@ public interface JSCIP extends Library {
 			throw new RuntimeException("Error, retcode "+ret);
 		return new SCIP_CONSHDLR(pref.getValue());
 	}
+	static SCIP_CONSHDLR includeConshdlrBasic(
+			String name, String desc,
+			int enfopriority, int chckpriority, int eagerfreq, boolean needscons,
+			SCIP_DECL_CONSENFOLP consenfolp,
+			SCIP_DECL_CONSENFOPS consenfops,
+			SCIP_DECL_CONSCHECK conscheck,
+			SCIP_DECL_CONSLOCK conslock,
+			Pointer conshdlrdata//SCIP_CONSHDLRDATA 
+		) {
+		return CALL_SCIPincludeConshdlrBasic(JSCIP.scip, name, desc,
+				enfopriority, chckpriority, eagerfreq, needscons, consenfolp, consenfops,
+				conscheck, conslock, conshdlrdata);
+	}
 	
 	SCIP_RETCODE SCIPsetConshdlrDelete(SCIP scip, SCIP_CONSHDLR conshdlr, SCIP_DECL_CONSDELETE consDelete);
 	static void CALL_SCIPsetConshdlrDelete(SCIP scip, SCIP_CONSHDLR conshdlr, SCIP_DECL_CONSDELETE consDelete) {
@@ -218,6 +336,55 @@ public interface JSCIP extends Library {
 		return cons;
 	}
 	
+	SCIP_RETCODE SCIPsetConshdlrTrans(SCIP scip, SCIP_CONSHDLR conshdlr, SCIP_DECL_CONSTRANS constrans);
+	static void CALL_SCIPsetConshdlrTrans(SCIP scip, SCIP_CONSHDLR conshdlr, SCIP_DECL_CONSTRANS constrans) {
+		SCIP_RETCODE ret = LIB.SCIPsetConshdlrTrans(scip, conshdlr, constrans);
+		if(ret != SCIP_OKAY)
+			throw new RuntimeException("Error, retcode "+ret);
+	}
+	static void setConshdlrTrans(SCIP_CONSHDLR conshdlr, SCIP_DECL_CONSTRANS constrans) {
+		CALL_SCIPsetConshdlrTrans(scip, conshdlr, constrans);
+	}
+	
+	SCIP_RETCODE SCIPsetConshdlrProp(SCIP scip, SCIP_CONSHDLR conshdlr, SCIP_DECL_CONSPROP consprop,
+			int propfreq, boolean delayprop, SCIP_PROPTIMING proptiming);
+	static void CALL_SCIPsetConshdlrProp(SCIP scip, SCIP_CONSHDLR conshdlr, SCIP_DECL_CONSPROP consprop,
+			int propfreq, boolean delayprop, SCIP_PROPTIMING proptiming) {
+		SCIP_RETCODE ret = LIB.SCIPsetConshdlrProp(scip, conshdlr, consprop, propfreq, delayprop, proptiming);
+		if(ret != SCIP_OKAY)
+			throw new RuntimeException("Error, retcode "+ret);
+	}
+	static void setConshdlrProp(SCIP_CONSHDLR conshdlr, SCIP_DECL_CONSPROP consprop,
+			int propfreq, boolean delayprop, SCIP_PROPTIMING proptiming) {
+		CALL_SCIPsetConshdlrProp(scip, conshdlr, consprop, propfreq, delayprop, proptiming);
+	}
+	
+	/* scip_cut.h */
+	SCIP_RETCODE SCIPaddRow(SCIP scip, SCIP_ROW row, boolean forcecut, ByteByReference infeasible);
+	//Returns true if the row rendered problem infeasible 
+	static boolean CALL_SCIPaddRow(SCIP scip, SCIP_ROW row, boolean forcecut) {
+		ByteByReference bref = new ByteByReference();
+		SCIP_RETCODE ret = LIB.SCIPaddRow(scip, row, forcecut, bref);
+		if(ret != SCIP_OKAY)
+			throw new RuntimeException("Error, retcode "+ret);
+		return bref.getValue() != 0;
+	}
+	static boolean addRow(SCIP_ROW row, boolean forcecut) { return CALL_SCIPaddRow(scip, row, forcecut); }
+	
+	SCIP_RETCODE SCIPaddPoolCut(SCIP scip, SCIP_ROW row);
+	static void CALL_SCIPaddPoolCut(SCIP scip, SCIP_ROW row) {
+		SCIP_RETCODE ret = LIB.SCIPaddPoolCut(scip, row);
+		if(ret != SCIP_OKAY)
+			throw new RuntimeException("Error, retcode "+ret);
+		return;
+	}
+	static void addPoolCut(SCIP_ROW row) {  CALL_SCIPaddPoolCut(scip, row); }
+	
+	boolean SCIPisCutEfficacious(SCIP scip, SCIP_SOL sol, SCIP_ROW cut);
+	static boolean isCutEfficacious(SCIP_SOL sol, SCIP_ROW cut) {
+		return JSCIP.LIB.SCIPisCutEfficacious(scip, sol, cut);
+	}
+	
 	/* scip_dialog.h */
 	SCIP_RETCODE SCIPstartInteraction(SCIP scip);
 	static void CALL_SCIPstartInteraction(SCIP scip) {
@@ -252,7 +419,7 @@ public interface JSCIP extends Library {
 			throw new RuntimeException("Error, retcode "+ret);
 //		scip.setPointer(pref.getValue()); //always returns null
     }
-    static void free() { CALL_SCIPfree(scip); }
+    static void free() { CALL_SCIPfree(scip); scip.setPointer(null); }
     
 	void SCIPprintVersion(SCIP scip, Pointer file);
 	static void printVersion(Pointer file) { LIB.SCIPprintVersion(scip, file); }
@@ -280,12 +447,71 @@ public interface JSCIP extends Library {
 		return row;
 	}
 	
-	int SCIPaddVarToRow(SCIP scip, SCIP_ROW row, SCIP_VAR var, double val);
-	int SCIPaddRow(SCIP scip, SCIP_ROW row, boolean forcecut, ByteByReference infeasible);
-	int SCIPreleaseRow(SCIP scip, PointerByReference row);//TODO
+	SCIP_RETCODE SCIPaddVarToRow(SCIP scip, SCIP_ROW row, SCIP_VAR var, double val);
+	static void CALL_SCIPaddVarToRow(SCIP scip, SCIP_ROW row, SCIP_VAR var, double val) {
+		SCIP_RETCODE ret = LIB.SCIPaddVarToRow(scip, row, var, val);
+		if(ret != SCIP_OKAY)
+			throw new RuntimeException("Error, retcode "+ret);
+	}
+	static void addVarToRow(SCIP_ROW row, SCIP_VAR var, double val) { CALL_SCIPaddVarToRow(scip, row, var, val); }
 	
-	int SCIPcacheRowExtensions(SCIP scip, SCIP_ROW row);
-	int SCIPflushRowExtensions(SCIP scip, SCIP_ROW row);
+	SCIP_RETCODE SCIPreleaseRow(SCIP scip, PointerByReference row);
+	static void CALL_SCIPreleaseRow(SCIP scip, SCIP_ROW row) {
+		PointerByReference pref = new PointerByReference();
+		pref.setValue(row.getPointer());
+		SCIP_RETCODE ret = LIB.SCIPreleaseRow(scip, pref);
+		if(ret != SCIP_OKAY)
+			throw new RuntimeException("Error, retcode "+ret);
+//		row.setPointer(pref.getValue());//always returns null
+	}
+	static void releaseRow(SCIP_ROW row) { CALL_SCIPreleaseRow(scip, row); }
+	
+	SCIP_RETCODE SCIPcacheRowExtensions(SCIP scip, SCIP_ROW row);
+	static void CALL_SCIPcacheRowExtensions(SCIP scip, SCIP_ROW row) {
+		SCIP_RETCODE ret = LIB.SCIPcacheRowExtensions(scip, row);
+		if(ret != SCIP_OKAY)
+			throw new RuntimeException("Error, retcode "+ret);
+	}
+	static void cacheRowExtensions(SCIP_ROW row) { CALL_SCIPcacheRowExtensions(scip, row); }
+	
+	SCIP_RETCODE SCIPflushRowExtensions(SCIP scip, SCIP_ROW row);
+	static void CALL_SCIPflushRowExtensions(SCIP scip, SCIP_ROW row) {
+		SCIP_RETCODE ret = LIB.SCIPflushRowExtensions(scip, row);
+		if(ret != SCIP_OKAY)
+			throw new RuntimeException("Error, retcode "+ret);
+	}
+	static void flushRowExtensions(SCIP_ROW row) { CALL_SCIPflushRowExtensions(scip, row); }
+	
+	/* scip_heur.h */
+	SCIP_RETCODE SCIPincludeHeurBasic(SCIP scip, PointerByReference scip_heur, String name, String desc,
+			byte dispchar, int priority, int freq, int freqofs, int maxdepth, SCIP_HEURTIMING timingmask,
+			boolean usessubscip, SCIP_DECL_HEUREXEC heurexec, SCIP_HEURDATA heurdata);
+	static void CALL_SCIPincludeHeurBasic(SCIP scip, SCIP_HEUR scip_heur, String name, String desc,
+			byte dispchar, int priority, int freq, int freqofs, int maxdepth, SCIP_HEURTIMING timingmask,
+			boolean usessubscip, SCIP_DECL_HEUREXEC heurexec, SCIP_HEURDATA heurdata) {
+		PointerByReference pref = new PointerByReference();
+		pref.setValue(scip_heur.getPointer());
+		SCIP_RETCODE ret = LIB.SCIPincludeHeurBasic(scip, pref, name, desc, dispchar, priority, freq,
+				freqofs, maxdepth, timingmask, usessubscip, heurexec, heurdata);
+		if(ret != SCIP_OKAY)
+			throw new RuntimeException("Error, retcode "+ret);
+		scip_heur.setPointer(pref.getValue());
+	}
+	static SCIP_HEUR includeHeurBasic(String name, String desc, byte dispchar, int priority, int freq,
+			int freqofs, int maxdepth, SCIP_HEURTIMING timingmask, boolean usessubscip,
+			SCIP_DECL_HEUREXEC heurexec, SCIP_HEURDATA heurdata) {
+		SCIP_HEUR scip_heur = new SCIP_HEUR();
+		CALL_SCIPincludeHeurBasic(scip, scip_heur, name, desc, dispchar, priority, freq, freqofs, maxdepth,
+				timingmask, usessubscip, heurexec, heurdata);
+		return scip_heur;
+	}
+	
+	SCIP_RETCODE SCIPsetHeurCopy(SCIP scip, SCIP_HEUR heur, SCIP_DECL_HEURCOPY heurcopy);
+	SCIP_RETCODE SCIPsetHeurFree(SCIP scip, SCIP_HEUR heur, SCIP_DECL_HEURFREE heurfree);
+	SCIP_RETCODE SCIPsetHeurInit(SCIP scip, SCIP_HEUR heur, SCIP_DECL_HEURINIT heurinit);
+	SCIP_RETCODE SCIPsetHeurExit(SCIP scip, SCIP_HEUR heur, SCIP_DECL_HEUREXIT heurexit);
+	SCIP_RETCODE SCIPsetHeurInitsol(SCIP scip, SCIP_HEUR heur, SCIP_DECL_HEURINITSOL heurinitsol);
+	SCIP_RETCODE SCIPsetHeurExitsol(SCIP scip, SCIP_HEUR heur, SCIP_DECL_HEUREXITSOL heurexitsol);
 	
 	/* scip_mem.h */
 	Pointer SCIPblkmem(SCIP scip);
@@ -436,6 +662,61 @@ public interface JSCIP extends Library {
 		return LIB.SCIPgetSolOrigObj(scip, sol);
 	}
 	
+	SCIP_RETCODE SCIPcreateSol(SCIP scip, PointerByReference sol, SCIP_HEUR heur);
+	static void CALL_SCIPcreateSol(SCIP scip, SCIP_SOL sol, SCIP_HEUR heur) {
+		PointerByReference pref = new PointerByReference();
+		pref.setValue(sol.getPointer());
+		SCIP_RETCODE ret = LIB.SCIPcreateSol(scip, pref, heur);
+		if(ret != SCIP_OKAY)
+			throw new RuntimeException("Error, retcode "+ret);
+		sol.setPointer(pref.getValue());
+	}
+	static SCIP_SOL createSol(SCIP_HEUR heur) {
+		SCIP_SOL scip_sol = new SCIP_SOL();
+		CALL_SCIPcreateSol(scip, scip_sol, heur);
+		return scip_sol;
+	}
+
+	SCIP_RETCODE SCIPfreeSol(SCIP scip, PointerByReference sol);
+	static void CALL_SCIPfreeSol(SCIP scip, SCIP_SOL sol) {
+		PointerByReference pref = new PointerByReference();
+		pref.setValue(sol.getPointer());
+		SCIP_RETCODE ret = LIB.SCIPfreeSol(scip, pref);
+		if(ret != SCIP_OKAY)
+			throw new RuntimeException("Error, retcode "+ret);
+//		sol.setPointer(pref.getValue());//always returns null
+	}
+	static void freeSol(SCIP_SOL sol) {
+		CALL_SCIPfreeSol(scip, sol);
+	}
+	
+	SCIP_RETCODE SCIPsetSolVal(SCIP scip, SCIP_SOL sol, SCIP_VAR var, double val);
+	static void CALL_SCIPsetSolVal(SCIP scip, SCIP_SOL sol, SCIP_VAR var, double val) {
+		SCIP_RETCODE ret = LIB.SCIPsetSolVal(scip, sol, var, val);
+		if(ret != SCIP_OKAY)
+			throw new RuntimeException("Error, retcode "+ret);
+	}
+	static void setSolVal(SCIP_SOL sol, SCIP_VAR var, double val) {
+		CALL_SCIPsetSolVal(scip, sol, var, val);	
+	}
+
+	SCIP_RETCODE SCIPtrySol(SCIP scip, SCIP_SOL sol, boolean printreason, boolean completely,
+			boolean checkbounds, boolean checkintegrality, boolean checklprows,
+			ByteByReference stored);
+	//Returns true if solution was stored
+	static boolean CALL_SCIPtrySol(SCIP scip, SCIP_SOL sol, boolean printreason, boolean completely,
+			boolean checkbounds, boolean checkintegrality, boolean checklprows) {
+		ByteByReference bref = new ByteByReference();
+		SCIP_RETCODE ret = LIB.SCIPtrySol(scip, sol, printreason, completely, checkbounds,
+				checkintegrality, checklprows, bref);
+		return bref.getValue() != 0;
+	}
+	static boolean trySol(SCIP_SOL sol, boolean printreason, boolean completely,
+			boolean checkbounds, boolean checkintegrality, boolean checklprows) {
+		return CALL_SCIPtrySol(scip, sol, printreason, completely, checkbounds,
+				checkintegrality, checklprows);
+	}
+	
 	/* scip_solve.h */
 	SCIP_RETCODE SCIPpresolve(SCIP scip);
 	static void CALL_SCIPpresolve(SCIP scip) {
@@ -543,8 +824,35 @@ public interface JSCIP extends Library {
 	SCIP_VARTYPE SCIPvarGetType(SCIP_VAR var);
 	static SCIP_VARTYPE varGetType(SCIP_VAR var) { return LIB.SCIPvarGetType(var); }
 	
+	SCIP_VARSTATUS SCIPvarGetStatus(SCIP_VAR var);
+	static SCIP_VARSTATUS varGetStatus(SCIP_VAR var) { return LIB.SCIPvarGetStatus(var); }
+	
 	double SCIPvarGetObj(SCIP_VAR var);
 	static double varGetObj(SCIP_VAR var) { return LIB.SCIPvarGetObj(var); }
+	
+	double SCIPvarGetLbLocal(SCIP_VAR var);
+	static double varGetLbLocal(SCIP_VAR var) { return LIB.SCIPvarGetLbLocal(var); }
+	
+	double SCIPvarGetUbLocal(SCIP_VAR var);
+	static double varGetUbLocal(SCIP_VAR var) { return LIB.SCIPvarGetUbLocal(var); }
+	
+	double SCIPvarGetLbGlobal(SCIP_VAR var);
+	static double varGetLbGlobal(SCIP_VAR var) { return LIB.SCIPvarGetLbGlobal(var); }
+	
+	double SCIPvarGetUbGlobal(SCIP_VAR var);
+	static double varGetUbGlobal(SCIP_VAR var) { return LIB.SCIPvarGetUbGlobal(var); }
+	
+	double SCIPvarGetLbOriginal(SCIP_VAR var);
+	static double varGetLbOriginal(SCIP_VAR var) { return LIB.SCIPvarGetLbOriginal(var); }
+	
+	double SCIPvarGetUbOriginal(SCIP_VAR var);
+	static double varGetUbOriginal(SCIP_VAR var) { return LIB.SCIPvarGetUbOriginal(var); }
+	
+	double SCIPvarGetLbLazy(SCIP_VAR var);
+	static double varGetLbLazy(SCIP_VAR var) { return LIB.SCIPvarGetLbLazy(var); }
+	
+	double SCIPvarGetUbLazy(SCIP_VAR var);
+	static double varGetUbLazy(SCIP_VAR var) { return LIB.SCIPvarGetUbLazy(var); }
 	
 	//Our own sketchy methods. This gets the SCIP_SET* field
 	static Pointer SCIPset(SCIP scip) {

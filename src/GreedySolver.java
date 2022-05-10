@@ -74,7 +74,7 @@ public class GreedySolver implements Solver {
 
 			if(USE_SCC) {
 				SCC scc = new SCC();
-				boolean sccSplit = scc.SCC(g);
+				boolean sccSplit = scc.doSCC(g);
 				if(sccSplit) {
 					if(Main_Load.VERBOSE)
 						System.out.println("SCC split: "+scc.sccInfo.size()+" "+scc.sccInfo.stream().mapToInt(ArrayList::size).boxed().collect(Collectors.toList()));
@@ -152,8 +152,7 @@ public class GreedySolver implements Solver {
 				System.out.println("Take out "+v0);
 			
 			//Just add a self-loop. The pruner will add it to the FVS and go from there!
-			
-			g.eList[v0].add(v0); g.backEList[v0].add(v0); g.inDeg[v0]++; g.outDeg[v0]++;
+			g.addSelfLoop(v0);
 			
 //			g.clearVertex(v0);
 //			g.mustFVS[g.invMap[v0]] = true;
