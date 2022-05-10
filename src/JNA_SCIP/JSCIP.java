@@ -718,6 +718,14 @@ public interface JSCIP extends Library {
 	}
 	
 	/* scip_solve.h */
+	SCIP_RETCODE SCIPenableReoptimization(SCIP scip, boolean enable);
+	static void CALL_SCIPenableReoptimization(SCIP scip, boolean enable) {
+		SCIP_RETCODE ret = LIB.SCIPenableReoptimization(scip, enable);
+		if(ret != SCIP_OKAY)
+			throw new RuntimeException("Error, retcode "+ret);
+	}
+	static void enableReoptimization(boolean enable) { CALL_SCIPenableReoptimization(scip, enable); }
+	
 	SCIP_RETCODE SCIPpresolve(SCIP scip);
 	static void CALL_SCIPpresolve(SCIP scip) {
 		SCIP_RETCODE ret = LIB.SCIPpresolve(scip);
