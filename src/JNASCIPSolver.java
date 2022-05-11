@@ -67,6 +67,9 @@ public class JNASCIPSolver implements Solver {
 	
 	@Override
 	public ArrayList<Integer> solve(Graph g) {
+		if(Main_Load.TESTING)
+			System.out.println("Solving with JNASCIPSolver");
+		
 		this.g = g;
 		this.N = g.N;
 		

@@ -2,7 +2,7 @@ import java.util.ArrayList;
 import java.util.stream.Collectors;
 
 public class ExactSolver {
-	static final boolean USE_SCC = true;
+	static final boolean USE_SCC = false;
 	
 	public static ArrayList<Integer> solve(Graph g_orig) {
 		ReducedGraph rg = ReducedGraph.fromGraph(g_orig);
@@ -34,9 +34,15 @@ public class ExactSolver {
 	public static ArrayList<Integer> solveSCC(ReducedGraph rg_scc, boolean reprune) {
 //		if(reprune)
 //			rg_scc.prune();
-		System.out.println(rg_scc.real_N());
+		if(Main_Load.TESTING) 
+			System.out.println("SCC: V="+rg_scc.real_N()+", E="+rg_scc.E());
+//		System.out.println("Heuristic primal: "+ExactSolver_Heuristic.solve(rg_scc).size());
 
-		ArrayList<Integer> res = new JNASCIPSolver().solve(Graph.fromReducedGraph(rg_scc));
+		ArrayList<Integer> res =
+//				new JNASCIPSolver()
+				new JNASCIPSolver_Reopt()
+//				new SCIPSolver()
+				.solve(Graph.fromReducedGraph(rg_scc));
 		res = rg_scc.transformSolution(res);
 		return res;
 	}

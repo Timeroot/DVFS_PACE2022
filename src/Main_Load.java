@@ -20,7 +20,7 @@ public class Main_Load {
 	
 	boolean[] candidateDVFS;
 	
-	static final boolean TESTING = true;
+	static final boolean TESTING = false;
 	static final boolean VERBOSE = TESTING && false;
 	static final boolean HEURISTIC = false;
 	
@@ -197,7 +197,9 @@ public class Main_Load {
 		long startT = System.currentTimeMillis();
 		String prefix = HEURISTIC ? "./heuristic_public/h_" : "./exact_public/e_";
 		int done=0;
-		for(int i=37; i<=37; i+=2) {//#37 (78s)
+		//#37 tricky, #73 requires new cycle.
+		//#85 is killer. #93 is hard (~500s)
+		for(int i=1; i<=71; i+=2) {
 			long t0 = System.currentTimeMillis();
 			
 			String problem = prefix+"000".substring(Integer.toString(i).length())+i;

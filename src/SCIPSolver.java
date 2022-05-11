@@ -37,6 +37,8 @@ public class SCIPSolver implements Solver {
 	int node_limit = 10;
 	@Override
 	public ArrayList<Integer> solve(Graph g) {
+		if(Main_Load.TESTING)
+			System.out.println("Solving with SCIPSolver");
 		N = g.N;
 		
 		//first get a cycle using the base graph (no tentative solution).

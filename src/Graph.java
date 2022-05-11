@@ -144,4 +144,34 @@ public class Graph {
                 return true;
         return false;
     }
+	
+	public int E() {
+		int tot = 0;
+		for(int i=0; i<N; i++)
+			tot += outDeg[i];
+		return tot;
+	}
+
+	void dump() {
+		System.out.print("{");
+		boolean firstRow = true;
+		for(int i=0; i<N; i++) {
+			if(outDeg[i] == 0)
+				continue;
+			if(!firstRow) {
+				System.out.print(",");
+				firstRow = false;
+			}
+			System.out.print("{");
+			boolean first = true;
+			for(int vo : eList[i]) {
+				if(!first)
+					System.out.print(", ");
+				System.out.print(i+" -> "+vo);
+				first = false;
+			}
+			System.out.println("}");
+		}
+		System.out.println("}");
+	}
 }

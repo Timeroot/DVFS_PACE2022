@@ -24,6 +24,7 @@ public interface JSCIP extends Library {
             addTypeConverter(SCIP_PARAMSETTING.class, new EnumConverter<SCIP_PARAMSETTING>(SCIP_PARAMSETTING.class));
             addTypeConverter(SCIP_PROPTIMING.class, new EnumConverter<SCIP_PROPTIMING>(SCIP_PROPTIMING.class));
             addTypeConverter(SCIP_RESULT.class, new EnumConverter<SCIP_RESULT>(SCIP_RESULT.class));
+            addTypeConverter(SCIP_STAGE.class, new EnumConverter<SCIP_STAGE>(SCIP_STAGE.class));
             addTypeConverter(SCIP_STATUS.class, new EnumConverter<SCIP_STATUS>(SCIP_STATUS.class));
             addTypeConverter(SCIP_VARSTATUS.class, new EnumConverter<SCIP_VARSTATUS>(SCIP_VARSTATUS.class));
             addTypeConverter(SCIP_VARTYPE.class, new EnumConverter<SCIP_VARTYPE>(SCIP_VARTYPE.class));
@@ -421,6 +422,9 @@ public interface JSCIP extends Library {
     }
     static void free() { CALL_SCIPfree(scip); scip.setPointer(null); }
     
+    SCIP_STAGE SCIPgetStage(SCIP scip);
+    static SCIP_STAGE getStage() { return LIB.SCIPgetStage(scip); }
+    
 	void SCIPprintVersion(SCIP scip, Pointer file);
 	static void printVersion(Pointer file) { LIB.SCIPprintVersion(scip, file); }
 	
@@ -546,6 +550,15 @@ public interface JSCIP extends Library {
 	};
 	static void setCharParam(String name, byte value) { CALL_SCIPsetCharParam(scip, name, value); }
 
+	//this is actually a bool value, but SCIP is picky about bools being 0 or 1
+	SCIP_RETCODE SCIPsetBoolParam(SCIP scip, String name, int value);
+	static void CALL_SCIPsetBoolParam(SCIP scip, String name, boolean value) {
+		SCIP_RETCODE ret = LIB.SCIPsetBoolParam(scip, name, value?1:0);
+		if(ret != SCIP_OKAY)
+			throw new RuntimeException("Error, retcode "+ret);
+	};
+	static void setBoolParam(String name, boolean value) { CALL_SCIPsetBoolParam(scip, name, value); }
+
 	SCIP_RETCODE SCIPsetIntParam(SCIP scip, String name, int value);
 	static void CALL_SCIPsetIntParam(SCIP scip, String name, int value) {
 		SCIP_RETCODE ret = LIB.SCIPsetIntParam(scip, name, value);
@@ -642,6 +655,30 @@ public interface JSCIP extends Library {
 		CALL_SCIPprintSol(scip, sol, file, printzeros);
 	}
 	
+	SCIP_RETCODE SCIPfreeReoptSolve(SCIP scip);
+	static void CALL_SCIPfreeReoptSolve(SCIP scip) {
+		SCIP_RETCODE ret = LIB.SCIPfreeReoptSolve(scip);
+		if(ret != SCIP_OKAY)
+			throw new RuntimeException("Error, retcode "+ret);
+	}
+	static void freeReoptSolve() { CALL_SCIPfreeReoptSolve(scip); }
+	
+	SCIP_RETCODE SCIPfreeTransform(SCIP scip);
+	static void CALL_SCIPfreeTransform(SCIP scip) {
+		SCIP_RETCODE ret = LIB.SCIPfreeTransform(scip);
+		if(ret != SCIP_OKAY)
+			throw new RuntimeException("Error, retcode "+ret);
+	}
+	static void freeTransform() { CALL_SCIPfreeTransform(scip); }
+	
+	SCIP_RETCODE SCIPfreeSolve(SCIP scip);
+	static void CALL_SCIPfreeSolve(SCIP scip) {
+		SCIP_RETCODE ret = LIB.SCIPfreeSolve(scip);
+		if(ret != SCIP_OKAY)
+			throw new RuntimeException("Error, retcode "+ret);
+	}
+	static void freeSolve() { CALL_SCIPfreeSolve(scip); }
+	
 	SCIP_RETCODE SCIPprintBestSol(SCIP scip, Pointer file, boolean printzeros);
 	static void CALL_SCIPprintBestSol(SCIP scip, Pointer file, boolean printzeros) {
 		SCIP_RETCODE ret = LIB.SCIPprintBestSol(scip, file, printzeros);
@@ -718,9 +755,9 @@ public interface JSCIP extends Library {
 	}
 	
 	/* scip_solve.h */
-	SCIP_RETCODE SCIPenableReoptimization(SCIP scip, boolean enable);
+	SCIP_RETCODE SCIPenableReoptimization(SCIP scip, int enable);
 	static void CALL_SCIPenableReoptimization(SCIP scip, boolean enable) {
-		SCIP_RETCODE ret = LIB.SCIPenableReoptimization(scip, enable);
+		SCIP_RETCODE ret = LIB.SCIPenableReoptimization(scip, enable?1:0);
 		if(ret != SCIP_OKAY)
 			throw new RuntimeException("Error, retcode "+ret);
 	}

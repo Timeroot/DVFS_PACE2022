@@ -1,5 +1,6 @@
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.HashSet;
 
 import JNA_SCIP.JSCIP;
 import JNA_SCIP.SCIP_CONS;
@@ -8,13 +9,14 @@ import JNA_SCIP.SCIP_STATUS;
 import JNA_SCIP.SCIP_VAR;
 
 import static JNA_SCIP.SCIP_PARAMSETTING.*;
+import static JNA_SCIP.SCIP_PARAMEMPHASIS.*;
 import static JNA_SCIP.SCIP_STATUS.*;
 import static JNA_SCIP.SCIP_VARTYPE.*;
 
 //Version of SCIPSolver that just uses reoptimization
 public class JNASCIPSolver_Reopt implements Solver {
 
-	ArrayList<int[]> cycleList = new ArrayList<int[]>();
+	ArrayList<int[]> cycleList;
 	int N;
 	int cycle_i;
 	SCIP_VAR[] vars;
@@ -24,17 +26,45 @@ public class JNASCIPSolver_Reopt implements Solver {
 	public JNASCIPSolver_Reopt() {
 	}
 
-	int time_limit = 3;
-	int node_limit = 10;
+	int time_limit = 3000;
+	int node_limit = 1000;
 	@Override
 	public ArrayList<Integer> solve(Graph g) {
+		if(Main_Load.TESTING)
+			System.out.println("Solving with JNASCIPSolver_Reopt");
+		cycleList = new ArrayList<int[]>();
 		N = g.N;
+		cycle_i = 0;
+
+		//SCIP initialization
+		JSCIP.create();
+		if(ECHO)
+			JSCIP.printVersion(null);
+		JSCIP.includeDefaultPlugins();
+		JSCIP.createProbBasic("prob");
+		if(!ECHO)
+			JSCIP.setIntParam("display/verblevel", 0);
+
+		JSCIP.setPresolving(SCIP_PARAMSETTING_AGGRESSIVE, !ECHO);
+		JSCIP.setEmphasis(SCIP_PARAMEMPHASIS_OPTIMALITY, !ECHO);
+//		JSCIP.enableReoptimization(true);
+//		JSCIP.setBoolParam("reoptimization/enable", true);
+
+		//Allocate variables
+		vars = new SCIP_VAR[N];
+		for(int i=0; i<N; i++) {
+			//Each variable has objective weight of 1.0
+			vars[i] = JSCIP.createVarBasic("v"+i, 0, 1, 1.0, SCIP_VARTYPE_BINARY);
+			JSCIP.addVar(vars[i]);
+		}
 		
 		//first get a few cycle using the base graph (no tentative solution).
 		
 		ArrayList<Integer> trySol = new ArrayList<Integer>();
 		boolean isAcyc = false;
 		findTriangles(g);
+		cleanUpGraph(g);
+		findC4s(g);
 		
 		GenCyclesMode mode = GenCyclesMode.EDGE_DFS_GENEROUS;
 		if(Main_Load.TESTING) System.out.println("Operating in mode "+mode);
@@ -65,6 +95,12 @@ public class JNASCIPSolver_Reopt implements Solver {
 				}
 			}
 		}
+
+		//SCIP cleanup
+		for(int i=0; i<N; i++) {
+			JSCIP.releaseVar(vars[i]);
+		}
+		JSCIP.free();
 		
 		return trySol;
 	}
@@ -76,25 +112,6 @@ public class JNASCIPSolver_Reopt implements Solver {
 	}
 	
 	SCIP_STATUS getSCIPSolution(ArrayList<Integer> res) {
-		cycle_i = 0;
-
-		//SCIP initialization
-		JSCIP.create();
-		if(!ECHO)
-			JSCIP.printVersion(null);
-		JSCIP.includeDefaultPlugins();
-		JSCIP.createProbBasic("prob");
-//		if(!ECHO)
-//			JSCIP.setIntParam("display/verblevel", 0);
-		
-		//Allocate variables
-		vars = new SCIP_VAR[N];
-		for(int i=0; i<N; i++) {
-			//Each variable has objective weight of 1.0
-			vars[i] = JSCIP.createVarBasic("v"+i, 0, 1, 1.0, SCIP_VARTYPE_BINARY);
-			JSCIP.addVar(vars[i]);
-		}
-		
 		double inf = JSCIP.infinity();
 		
 		//Constraints
@@ -109,14 +126,13 @@ public class JNASCIPSolver_Reopt implements Solver {
 			JSCIP.addCons(cons);
 			JSCIP.releaseCons(cons);
 		}
-
-		JSCIP.setPresolving(SCIP_PARAMSETTING_AGGRESSIVE, !ECHO);
-//		JSCIP.setEmphasis(emph, quiet);
 		
-		JSCIP.setLongintParam("limits/nodes", node_limit);
-		JSCIP.setRealParam("limits/time", time_limit);
+//		JSCIP.setLongintParam("limits/nodes", node_limit);
+//		JSCIP.setRealParam("limits/time", time_limit);
+		JSCIP.setIntParam("reoptimization/maxsavednodes", node_limit);
+//		JSCIP.setRealParam("reoptimization/delay", time_limit);
 		
-		JSCIP.presolve();
+//		JSCIP.presolve();
 		JSCIP.solve();
 		
 		SCIP_SOL sol = JSCIP.getBestSol();
@@ -124,7 +140,7 @@ public class JNASCIPSolver_Reopt implements Solver {
 		SCIP_STATUS scip_status = JSCIP.getStatus();
 			
 		//Save the variables
-		res.clear();		
+		res.clear();
 		for(int i=0; i<N; i++) {
 			double val = JSCIP.getSolVal(sol, vars[i]);
 			if(val > 0.5) {
@@ -132,13 +148,16 @@ public class JNASCIPSolver_Reopt implements Solver {
 			}
 		}
 
-		if(Main_Load.TESTING) System.out.println("SCIP solved with "+cycleList.size()+" cycles and gave "+res.size()+" vertices. "+scip_status);
-
-		//SCIP cleanup
-		for(int i=0; i<N; i++) {
-			JSCIP.releaseVar(vars[i]);
-		}
-		JSCIP.free();
+		if(Main_Load.TESTING)
+			System.out.println("SCIP solved with "+cycleList.size()+" cycles and gave "+res.size()+" vertices. "+scip_status);
+	
+		if(Main_Load.TESTING)
+			System.out.println("Stage = "+JSCIP.getStage());
+//		JSCIP.freeReoptSolve();
+//		JSCIP.freeSolve();
+		JSCIP.freeTransform();
+		if(Main_Load.TESTING)
+			System.out.println("Stage = "+JSCIP.getStage());
 		
 		return scip_status;
 	}
@@ -176,7 +195,82 @@ public class JNASCIPSolver_Reopt implements Solver {
 		}
 		
 		long time = System.currentTimeMillis() - startT;
-		if(Main_Load.TESTING) System.out.println("FindTri took "+(time*0.001)+"sec, found "+pairsAdded+" K2 and "+trisAdded+" K3");
+		if(Main_Load.TESTING)
+			System.out.println("FindTri took "+(time*0.001)+"sec, found "+pairsAdded+" K2 and "+trisAdded+" K3");
+	}
+	
+	//After all K2s have been added to the cycleList enforcement, we can "safely" delete those from the graph --
+	// future processing doesn't need to worry about checking them, as at least one is gone. That is to say, all
+	// constraints involving those edges are fully represented in the appropriate rows.
+	void cleanUpGraph(Graph g) {
+		int edgesRemoved = 0;
+		for(int[] cycle : cycleList) {
+			if(cycle.length > 2)
+				continue;
+			if(cycle.length == 1)
+				throw new RuntimeException("Should've been removed in pruning?");
+			int i = cycle[0], j = cycle[1];
+			g.eList[i].remove(j);
+			g.backEList[i].remove(j);
+			g.inDeg[i]--;
+			g.outDeg[i]--;
+			g.eList[j].remove(i);
+			g.backEList[j].remove(i);
+			g.inDeg[j]--;
+			g.outDeg[j]--;
+			edgesRemoved+=2;
+		}
+		if(Main_Load.TESTING)
+			System.out.println("Minimized graph, now has "+edgesRemoved+" less edges. E="+g.E());
+	}
+	
+	void findC4s(Graph g) {
+		int c4Added = 0;
+		
+		long startT = System.currentTimeMillis();
+		
+		for(int i=0; i<g.N; i++) {
+			HashSet<Integer> iList =  g.eList[i];
+			for(int j : iList) {
+				if(j < i)//skip
+					continue;
+
+				HashSet<Integer> jList =  g.eList[j];
+				
+				//check for a pair
+				if(jList.contains(i)) {
+					continue;//have pair, don't need to worry
+				}
+				
+				//check for a triangle
+				for(int k : jList) {
+					if(k <= i)//skip
+						continue;
+					
+					HashSet<Integer> kList =  g.eList[k];
+					if(kList.contains(j) || kList.contains(i)) {
+						continue;//have triangle or pair, don't need to worry
+					}
+					
+					for(int l : g.eList[k]) {
+						if(l <= i || l==j)//skip
+							continue;
+
+						HashSet<Integer> lList =  g.eList[l];
+						if(lList.contains(i)) {
+							//add! unless...
+							if(lList.contains(j) || lList.contains(k) || iList.contains(l) || jList.contains(l))
+								continue;//have chord, don't need to worry
+							cycleList.add(new int[]{i,j,k,l});
+						}
+					}
+				}
+			}
+		}
+		
+		long time = System.currentTimeMillis() - startT;
+		if(Main_Load.TESTING) System.out.println("FindC4s took "+(time*0.001)+"sec, found "+c4Added+" C4");
+	
 	}
 	
 	//Given a graph and SCIP's output 'solution', check for any cycles. If at least one is found,

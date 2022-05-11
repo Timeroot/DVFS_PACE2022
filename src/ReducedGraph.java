@@ -137,6 +137,12 @@ public class ReducedGraph {
 	int real_N() {
 		return N - dropped_Size;
 	}
+	int E() {
+		int tot = 0;
+		for(int i=0; i<N; i++)
+			tot += outDeg[i];
+		return tot;
+	}
 	
 	void condense() {
 		if(dropped_Size == 0)

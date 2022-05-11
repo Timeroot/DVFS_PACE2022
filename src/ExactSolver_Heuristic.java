@@ -13,8 +13,8 @@ public class ExactSolver_Heuristic {
 		ArrayList<Integer> res = null; //will eventually hold solution
 		
 		while(g.N-g.dropped_Size > 0) {
-//			int v0 = GreedyHeuristics.sinkhornHeuristic(g, 4);
-			int v0 = GreedyHeuristics.degreeHeuristic(g);
+			int v0 = GreedyHeuristics.sinkhornHeuristic(g, 4);
+//			int v0 = GreedyHeuristics.degreeHeuristic(g);
 			
 			if(Main_Load.VERBOSE)
 				System.out.println("Take out "+v0);
