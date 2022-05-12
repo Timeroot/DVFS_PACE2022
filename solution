@@ -1,5 +1,5 @@
 #!/bin/bash
-#export LD_LIBRARY_PATH=./bin:.:$LD_LIBRARY_PATH
+export LD_LIBRARY_PATH=./bin:.:$LD_LIBRARY_PATH
 #exec java -cp ./bin:./jna-5.11.0.jar:./jna-platform-5.11.0.jar -Djna.debug_load=true JNA_SCIP.Examples.MILP_Example
-exec java -cp ./bin:./jna-5.11.0.jar:./jna-platform-5.11.0.jar JNA_SCIP.Examples.MILP_Example
-#exec java -cp ./bin Main_Load
+#exec java -cp ./bin:./jna-5.11.0.jar:./jna-platform-5.11.0.jar JNA_SCIP.Examples.MILP_Example
+exec java -cp ./bin:./jna-5.11.0.jar:./jna-platform-5.11.0.jar Main_Load

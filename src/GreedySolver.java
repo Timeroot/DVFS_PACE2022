@@ -125,7 +125,7 @@ public class GreedySolver implements Solver {
 			long ms_left = Main_Load.msRemaining();
 			
 			if(g.real_N() >= ARTICULATION_MIN_N && passesSinceLastArticulationCheck >= ARTICULATION_CHECK_FREQ) {
-				int artic = StrongArticulationPoints.articulations(g);
+				int artic = StrongArticulationPoints.articulations(g, false);
 				if(Main_Load.VERBOSE)
 					System.out.println("Articulation output: "+artic);
 				if(artic != -1) {

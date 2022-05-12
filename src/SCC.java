@@ -16,6 +16,11 @@ public class SCC {
 	//If SCC() returns false, it will be unmodified or cleared.
 	
 	ArrayList<ArrayList<Integer>> sccInfo = new ArrayList<>();
+
+	boolean doSCC(Graph g) {
+		return doSCC(ReducedGraph.wrap(g, true));
+	}
+	
 	boolean doSCC(ReducedGraph g) {
 		int SCC_time_temp;
 		int[] disc = new int[g.N];
@@ -120,6 +125,43 @@ public class SCC {
 		}
 		
 		return res;
+	}
+	
+	//Given the SCC data, removes any edges between SCC's.
+	int stripInterSCCEdges(ReducedGraph g) {
+		int[] sccIDs = new int[g.N];
+		int id = 1;
+		for (ArrayList<Integer> comp : sccInfo) {
+			for(Integer v : comp)
+				sccIDs[v] = id;
+			//increment
+			id += 1;
+		}
+		
+		int sccStripped = 0;
+		for (int i = 0; i < g.N; i++) {
+			if(g.dropped[i])
+				continue;
+			for(Iterator<Integer> jIter = g.eList[i].iterator();
+					jIter.hasNext();
+					) {
+				int j = jIter.next();
+				if(sccIDs[i] != sccIDs[j]) {
+					jIter.remove();
+					g.outDeg[i]--;
+					g.backEList[j].remove(i);
+					g.inDeg[j]--;
+					sccStripped++;
+				}
+			}
+		}
+		if(Main_Load.TESTING)
+			System.out.println("stripSCC removed "+sccStripped+" edges");
+		return sccStripped;
+	}
+	
+	int stripInterSCCEdges(Graph g) {
+		return stripInterSCCEdges(ReducedGraph.wrap(g, true));
 	}
 	
 }

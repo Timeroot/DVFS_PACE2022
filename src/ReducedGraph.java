@@ -42,6 +42,19 @@ public class ReducedGraph {
 		return new ReducedGraph(g.copy());
 	}
 	
+	public static ReducedGraph wrap(Graph g, boolean dropDegZero) {
+		ReducedGraph rg = new ReducedGraph(g.N, g.eList, g.backEList, g.inDeg, g.outDeg);
+		if(!dropDegZero)
+			return rg;
+		for(int i=0; i<g.N; i++) {
+			if(g.inDeg[i]==0 && g.outDeg[i]==0) {
+				rg.dropped[i] = true;
+				rg.dropped_Size++;
+			}
+		}
+		return rg;
+	}
+	
 	//Uses the same underlying arrays as g, so should only be used with g.copy() if will be edited.
 	private ReducedGraph(Graph g) {
 		this(g.N, g.eList, g.backEList, g.inDeg, g.outDeg);

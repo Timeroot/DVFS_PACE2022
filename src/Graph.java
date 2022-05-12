@@ -8,7 +8,7 @@ public class Graph {
 	HashSet<Integer>[] backEList;
 	int[] inDeg, outDeg;
 	
-	static final boolean CHECK = false;
+	static final boolean CHECK = true;
 	
 	public Graph(int N_, HashSet<Integer>[] eList_, HashSet<Integer>[] backEList_,
 			int[] inDeg_, int[] outDeg_) {
@@ -17,6 +17,18 @@ public class Graph {
 		backEList = backEList_;
 		inDeg = inDeg_;
 		outDeg = outDeg_;
+	}
+
+	public Graph(int N_, HashSet<Integer>[] eList_, HashSet<Integer>[] backEList_) {
+		N = N_;
+		eList = eList_;
+		backEList = backEList_;
+		inDeg = new int[N];
+		outDeg = new int[N];
+		for(int i=0; i<N; i++) {
+			inDeg[i] = backEList_[i].size();
+			outDeg[i] = eList_[i].size();
+		}
 	}
 	
 	//Sets graph to be a copy of given reduced graph. Returns int[] mapping back to vertices
@@ -146,20 +158,32 @@ public class Graph {
     }
 	
 	public int E() {
+		checkConsistency();
 		int tot = 0;
 		for(int i=0; i<N; i++)
 			tot += outDeg[i];
 		return tot;
+	}
+	
+	//remove all edges
+	void clear() {
+		for(int i=0; i<N; i++) {
+			eList[i].clear();
+			backEList[i].clear();
+			inDeg[i] = outDeg[i] = 0;
+		}
+		checkConsistency();
 	}
 
 	void dump() {
 		System.out.print("{");
 		boolean firstRow = true;
 		for(int i=0; i<N; i++) {
-			if(outDeg[i] == 0)
+			if(inDeg[i] ==0 && outDeg[i] == 0)
 				continue;
 			if(!firstRow) {
 				System.out.print(",");
+			} else {
 				firstRow = false;
 			}
 			System.out.print("{");

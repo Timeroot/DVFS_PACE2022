@@ -20,7 +20,7 @@ public class Main_Load {
 	
 	boolean[] candidateDVFS;
 	
-	static final boolean TESTING = false;
+	static final boolean TESTING = true;
 	static final boolean VERBOSE = TESTING && false;
 	static final boolean HEURISTIC = false;
 	
@@ -33,6 +33,7 @@ public class Main_Load {
 	
 	@SuppressWarnings({ "unchecked" })
 	public Main_Load(BufferedReader reader, PrintStream fileout) throws IOException {
+		MinimumCoverSolver.GraphChunk.biggestChunk = 0;
 		startT = System.currentTimeMillis();
 		
 		int E = -1;
@@ -199,7 +200,8 @@ public class Main_Load {
 		int done=0;
 		//#37 tricky, #73 requires new cycle.
 		//#85 is killer. #93 is hard (~500s)
-		for(int i=1; i<=71; i+=2) {
+		//#141 gave MLE, is MIS problem
+		for(int i=1; i<=151; i+=2) {
 			long t0 = System.currentTimeMillis();
 			
 			String problem = prefix+"000".substring(Integer.toString(i).length())+i;
@@ -229,7 +231,7 @@ public class Main_Load {
 //				is_killed = false;
 //			}
 			
-			verify(inName, outName);
+//			verify(inName, outName);
 			done++;
 			System.out.println("Took "+(System.currentTimeMillis()-t0)*0.001+"sec");
 			System.out.println();

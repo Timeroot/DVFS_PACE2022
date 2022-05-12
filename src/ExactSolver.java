@@ -12,7 +12,7 @@ public class ExactSolver {
 			SCC scc = new SCC();
 			boolean sccSplit = scc.doSCC(rg);
 			if(sccSplit) {
-	//			if(Main_Load.VERBOSE)
+				if(Main_Load.VERBOSE)
 					System.out.println("SCC split: "+scc.sccInfo.size()+" "+scc.sccInfo.stream().mapToInt(ArrayList::size).boxed().collect(Collectors.toList()));
 				ArrayList<ReducedGraph> sccParts = rg.splitOnSCC(scc, false);
 				ArrayList<Integer> res = new ArrayList<>();
@@ -25,6 +25,9 @@ public class ExactSolver {
 				}
 				res = rg.transformSolution(res);
 				return res;
+			} else {
+				if(Main_Load.VERBOSE)
+					System.out.println("All one big SCC");
 			}
 		}
 		
@@ -40,8 +43,9 @@ public class ExactSolver {
 
 		ArrayList<Integer> res =
 //				new JNASCIPSolver()
-				new JNASCIPSolver_Reopt()
+//				new JNASCIPSolver_Reopt()
 //				new SCIPSolver()
+				new MinimumCoverSolver()
 				.solve(Graph.fromReducedGraph(rg_scc));
 		res = rg_scc.transformSolution(res);
 		return res;

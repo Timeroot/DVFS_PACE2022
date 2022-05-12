@@ -6,7 +6,7 @@ public class StrongArticulationPoints {
 
 	ReducedGraph rg;
 	//returns a strong articulation point if there is one, otherwise returns -1
-	static int articulations(ReducedGraph rg) {
+	static int articulations(ReducedGraph rg, boolean checkAll) {
 //		rg.condense(); //maybe worth?
 		StrongArticulationPoints sap = new StrongArticulationPoints();
 		sap.rg = rg;
@@ -59,7 +59,11 @@ public class StrongArticulationPoints {
 			}
 		}
 		
-		return -1;//in theory could check without the root, too. In practice though...
+		if(!checkAll)
+			return -1;//in theory could check without the root, too. In practice though...
+		
+		//alright, we REALLY HAVE TO then
+		throw new RuntimeException("not implemented");
 	}
 
 	int[] dfs_numbering;
