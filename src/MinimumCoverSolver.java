@@ -192,6 +192,7 @@ public class MinimumCoverSolver implements Solver {
 					System.out.println("EASY: Vertex cover problem");
 //					dumpK2Graph();
 				}
+				return VertexCover.solve(pairList, g.N);
 			} else {
 				if(Main_Load.TESTING)
 					System.out.println("MEDIUM: Minimum cover.");
@@ -611,11 +612,22 @@ public class MinimumCoverSolver implements Solver {
 	
 	//Idea here is that for small chunks (< 10 vertices?) we can find a
 	//minimal set of cycles by brute force.
+	static final int BRUTE_LIMIT = 26;
 	void bruteForceCycleEnumerate(Graph g) {
 		int N = g.N;
-		if(g.N > 20) {
+		
+		if(g.N > BRUTE_LIMIT) {
+			if(g.nonZeroDegN() <= BRUTE_LIMIT) {
+				if(Main_Load.TESTING)
+					System.out.println("Brute force reduced to mini-chunk bc N="+g.N);
+				GraphChunk reduced = GraphChunk.nonzeroVerts(g, true);
+				int bigCycleListSizeBefore = bigCycleList.size();
+				bruteForceCycleEnumerate(reduced.gInner);
+				fixChunksSince(bigCycleListSizeBefore, reduced.mapping);
+				return;
+			}
 			if(Main_Load.TESTING)
-				System.out.println("Brute force not running on "+g);
+				System.out.println("Brute force not running on size "+g.N);
 //			g.dump();
 			return;
 		}

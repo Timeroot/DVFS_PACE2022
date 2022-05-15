@@ -70,6 +70,17 @@ public class GraphChunk {
 		return new GraphChunk(g);
 	}
 	
+	public static GraphChunk nonzeroVerts(Graph g, boolean destructive) {
+		int reduced_n = g.nonZeroDegN();
+		ArrayList<Integer> verts = new ArrayList<Integer>(reduced_n);
+		for(int i=0; i<g.N; i++) {
+			if(g.inDeg[i] > 0 || g.outDeg[i] > 0) {
+				verts.add(i);
+			}
+		}
+		return new GraphChunk(g, verts, destructive);
+	}
+	
 	//adds edges in this subgraph back into parent graph
 	void addInto(Graph g) {
 		for(int i=0; i<gInner.N; i++) {

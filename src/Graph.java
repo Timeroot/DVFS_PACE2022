@@ -8,7 +8,7 @@ public class Graph {
 	HashSet<Integer>[] backEList;
 	int[] inDeg, outDeg;
 	
-	static final boolean CHECK = false;
+	static final boolean CHECK = true;
 	
 	public Graph(int N_, HashSet<Integer>[] eList_, HashSet<Integer>[] backEList_,
 			int[] inDeg_, int[] outDeg_) {
@@ -173,6 +173,15 @@ public class Graph {
 			inDeg[i] = outDeg[i] = 0;
 		}
 		checkConsistency();
+	}
+	
+	//How many vertices have degree > 0, the 'effective' N?
+	int nonZeroDegN() {
+		int res = 0;
+		for(int i=0; i<N; i++)
+			if(inDeg[i] > 0 || outDeg[i] > 0)
+				res++;
+		return res;
 	}
 	
 	String dumpS() {
