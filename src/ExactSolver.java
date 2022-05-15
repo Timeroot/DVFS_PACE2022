@@ -5,7 +5,7 @@ public class ExactSolver {
 	static final boolean USE_SCC = false;
 	
 	public static ArrayList<Integer> solve(Graph g_orig) {
-		ReducedGraph rg = ReducedGraph.fromGraph(g_orig);
+		ReducedGraph rg = ReducedGraph.wrap(g_orig, true);//ReducedGraph.fromGraph(g_orig);
 		rg.prune();
 		
 		if(USE_SCC) {

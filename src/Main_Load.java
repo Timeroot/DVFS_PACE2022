@@ -20,6 +20,8 @@ public class Main_Load {
 	
 	boolean[] candidateDVFS;
 	
+	boolean foundSol = false;
+	
 	static final boolean TESTING = true;
 	static final boolean VERBOSE = TESTING && false;
 	static final boolean HEURISTIC = false;
@@ -33,7 +35,7 @@ public class Main_Load {
 	
 	@SuppressWarnings({ "unchecked" })
 	public Main_Load(BufferedReader reader, PrintStream fileout) throws IOException {
-		MinimumCoverSolver.GraphChunk.biggestChunk = 0;
+		GraphChunk.biggestChunk = 0;
 		startT = System.currentTimeMillis();
 		
 		int E = -1;
@@ -144,6 +146,7 @@ public class Main_Load {
 			return;
 		}
 		
+		foundSol = true;
 		if(TESTING)
 			System.out.println("FVS with size "+sol.size());
 		save(fileout, sol);
@@ -201,7 +204,11 @@ public class Main_Load {
 		//#37 tricky, #73 requires new cycle.
 		//#85 is killer. #93 is hard (~500s)
 		//#141 gave MLE, is MIS problem
-		for(int i=1; i<=151; i+=2) {
+		for(int i=13; i<=13; i+=2) {
+			if(i==85) {
+				System.out.println("SKIP 85");
+				continue;
+			}
 			long t0 = System.currentTimeMillis();
 			
 			String problem = prefix+"000".substring(Integer.toString(i).length())+i;
@@ -231,7 +238,11 @@ public class Main_Load {
 //				is_killed = false;
 //			}
 			
-//			verify(inName, outName);
+			if(ml.foundSol) {
+				verify(inName, outName);
+			} else {
+				System.out.println("Didn't verify because no solution found");
+			}
 			done++;
 			System.out.println("Took "+(System.currentTimeMillis()-t0)*0.001+"sec");
 			System.out.println();

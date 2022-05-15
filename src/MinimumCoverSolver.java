@@ -16,22 +16,18 @@ public class MinimumCoverSolver implements Solver {
 
 	ArrayList<int[]> pairList;
 	ArrayList<int[]> bigCycleList;
-	int N;
-	SCIP_VAR[] vars;
 	
 	static final boolean ECHO = false;
 	static final int MAX_SCC_SIZE = 100;
 	
-	public MinimumCoverSolver() {
-	}
+	public MinimumCoverSolver() {}
 
 	@Override
 	public ArrayList<Integer> solve(Graph g) {
 		if(Main_Load.TESTING)
-			System.out.println("Solving with IndependentSetSolver");
+			System.out.println("Solving with MinimumCoverSolver");
 		pairList = new ArrayList<int[]>();
 		bigCycleList = new ArrayList<int[]>();
-		N = g.N;
 		
 		//Find all K2's
 		for(int i=0; i<g.N; i++) {
@@ -46,6 +42,7 @@ public class MinimumCoverSolver implements Solver {
 				}
 			}
 		}
+		
 		//Remove all K2's from the graph
 		for(int[] cycle : pairList) {
 			if(cycle.length > 2)
@@ -79,6 +76,10 @@ public class MinimumCoverSolver implements Solver {
 		
 		//Repeatedly strip any degree zero vertices now
 		//EDIT: Realized this is subsumed by SCC analysis.
+		//actually let's try checking this
+		int d0_stripped = stripDegZero(g);
+		if(d0_stripped != 0)
+			throw new RuntimeException("StripSCC -> stripDegZero made progress "+d0_stripped);
 //		int d0_stripped = 0;
 //		if(rem_E > 0) {
 //			d0_stripped = stripDegZero(g);
@@ -162,18 +163,25 @@ public class MinimumCoverSolver implements Solver {
 		g.checkConsistency();
 		rem_E = g.E();
 
+		g.dump();
+
+		ArrayList<GraphChunk> rem_chunks = null;
 		if(rem_E > 0) {
 			if(Main_Load.TESTING)
 				System.out.println("Start processSCC");
-			int proSCCret = processSCC(g);
+			rem_chunks = processSCC(g);
+			//all edges should be pulled out into chunks
 			rem_E = g.E();
+			if(rem_E != 0)
+				throw new RuntimeException("processSCC didn't clear it?");
 			
-			isAllCycles = (rem_E == 0);
+			isAllCycles = (rem_chunks == null);
 			if(Main_Load.TESTING) {
 				System.out.println("ProcessSCC "+(isAllCycles?"worked":"failed"));
-				if(proSCCret == 0) {
+				if(rem_chunks != null) {
 					System.out.println("Couldn't split");
-					g.dump();
+//					g.dump();
+					System.out.println(rem_chunks);
 				}
 			}
 		}
@@ -188,8 +196,13 @@ public class MinimumCoverSolver implements Solver {
 					maxCycleSize = Math.max(maxCycleSize, cycle.length);
 				System.out.println(maxCycleSize+" many bigcycles, maximum size "+maxCycleSize);
 			}
+			ArrayList<Integer> sol = new MinimumCover().solve(g, pairList, bigCycleList);
+			System.out.println(sol);
+			//if that returns, we definitely got a solution!
+			return sol;
 		} else {
 			System.out.println("HARD: Not minimum cover!");
+			MinimumCoverInfo mci = new MinimumCoverInfo(g.N, pairList, bigCycleList, rem_chunks, null);
 //			g.dump();
 		}
 		//check e_019 for improved skipMerge
@@ -235,7 +248,6 @@ public class MinimumCoverSolver implements Solver {
 				v = g.eList[v].iterator().next();
 				
 				if(v == i){//yup, found a simple cycle
-					//TODO add to bigCycleList
 					int[] cycle = new int[cycleLen];
 					int dest = 0;
 					do {
@@ -396,7 +408,7 @@ public class MinimumCoverSolver implements Solver {
 	int stripDegZero(Graph g) {
 		int stripped = 0;
 		ArrayDeque<Integer> toDrop = new ArrayDeque<Integer>();
-		for(int i=0; i<N; i++) {
+		for(int i=0; i<g.N; i++) {
 			int inDeg = g.inDeg[i];
 			int outDeg = g.outDeg[i];
 			if((inDeg == 0 && outDeg != 0) || (outDeg == 0 && inDeg != 0)) {
@@ -441,8 +453,9 @@ public class MinimumCoverSolver implements Solver {
 		return stripped;
 	}
 
-	//Cuts into SCCs and processes each component separately
-	int processSCC(Graph g) {
+	//Cuts into SCCs and processes each component separately.
+	//Returns null if fully resolved into cycles. Otherwise returns chunks
+	ArrayList<GraphChunk> processSCC(Graph g) {
 		ReducedGraph rg = ReducedGraph.wrap(g, true);
 		SCC scc = new SCC();
 		boolean sccSplit = scc.doSCC(rg);
@@ -451,12 +464,17 @@ public class MinimumCoverSolver implements Solver {
 			GraphChunk chunk = GraphChunk.wrap(g);
 			processChunk(chunk);
 			if(chunk.gInner.E() != 0) {
-				chunk.addInto(g);
+//				chunk.addInto(g);
 //				chunk.gInner.dump();
-			}			
-			return 0;
+				ArrayList<GraphChunk> res = new ArrayList<>();
+				res.add(chunk);
+				return res;
+			} else {
+				return null;
+			}
 		}
-//		ArrayList<GraphChunk> chunkies = new ArrayList<GraphChunk>();
+		
+		ArrayList<GraphChunk> res = new ArrayList<>();
 		for(ArrayList<Integer> sccComp : scc.sccInfo) {
 			if(sccComp.size() > MAX_SCC_SIZE) {
 				continue;
@@ -464,16 +482,25 @@ public class MinimumCoverSolver implements Solver {
 			GraphChunk chunk = new GraphChunk(g, sccComp, true);
 			processChunk(chunk);
 			if(chunk.gInner.E() != 0) {
-				chunk.addInto(g);
-				chunk.gInner.dump();
+//				chunk.addInto(g);
+//				chunk.gInner.dump();
+				res.add(chunk);
 			}
 		}
 //		g.dump();
-		return 1;
+//		return 1;
+		if(res.size() == 0) {
+			return null;
+		} else {
+			return res;
+		}
 	}
 	
 	void processChunk(GraphChunk chunk) {
-//		chunk.gInner.dump();
+		System.out.println("Start chunk with "+Arrays.toString(chunk.mapping));
+		int bigCycleListI = bigCycleList.size();
+		
+		chunk.gInner.dump();
 //		System.out.println("Chunky chunk "+Arrays.toString(chunk.mapping));
 		while(skipMergeLong(chunk.gInner) > 0) {
 			if(Main_Load.TESTING)
@@ -481,11 +508,24 @@ public class MinimumCoverSolver implements Solver {
 			chunk.gInner.checkConsistency();
 		}
 		int killed = killSimpleCycles(chunk);
-		if(chunk.gInner.E() == 0)
+		if(chunk.gInner.E() == 0) {
+			debugNewCycles(chunk, bigCycleListI);
 			return;
-		if(checkSingleMultivert(chunk))
+		}
+		if(checkSingleMultivert(chunk)) {
+			debugNewCycles(chunk, bigCycleListI);
 			return;
+		}
 		splitWAP(chunk);
+		debugNewCycles(chunk, bigCycleListI);
+	}
+	
+	void debugNewCycles(GraphChunk chunk, int bigCycleListI) {
+		System.out.println("Chunk with "+Arrays.toString(chunk.mapping)+" led to:");
+		for(int i=bigCycleListI; i<bigCycleList.size(); i++) {
+			System.out.println("  "+Arrays.toString(bigCycleList.get(i)));
+		}
+		System.out.println("---");
 	}
 	
 	//splits on weak articulation points
@@ -496,12 +536,13 @@ public class MinimumCoverSolver implements Solver {
 		if(wap == -1) {
 			if(Main_Load.TESTING)
 				System.out.println("Couldn't split");
-			bruteForceCycleEnumerate(chunk);
+			bruteForceCycleEnumerate(chunk);//try to clear up manually if we can
 			return;//couldn't split
 		}
-		if(Main_Load.TESTING)
-			System.out.println("Split at "+wap+" on: ");
-		chunk.gInner.dump();
+		if(Main_Load.TESTING) {
+//			System.out.println("Split at "+wap+" on: ");
+//			chunk.gInner.dump();
+		}
 
 		//Now we have a WAP, split into connected components.
 		//each one gets the WAP itself, too.
@@ -563,7 +604,66 @@ public class MinimumCoverSolver implements Solver {
 	//Idea here is that for small chunks (< 10 vertices?) we can find a
 	//minimal set of cycles by brute force.
 	void bruteForceCycleEnumerate(GraphChunk gc) {
-		//TODO
+		int N = gc.gInner.N;
+		if(gc.gInner.N > 20) {
+			System.out.println("Brute force not running on ");
+			gc.gInner.dump();
+			return;
+		}
+		
+		
+		//Is the bitfield i enough that their removal makes it acyclic?
+		boolean[] isSufficient = new boolean[1<<N];
+		for(int flags = (1<<N); flags-->0; ) {
+//			System.out.println("Try flags = 0b"+Integer.toBinaryString(flags));
+			boolean areAllParentSuff = true;
+			//check if all parents (this + one more) are sufficient, first
+			for(int parentI = 0; parentI < N; parentI++) {
+				int parent = flags | (1<<parentI);
+				if(parent == flags)
+					continue;//already contained in flags
+				if(!isSufficient[parent]) {
+//					System.out.println(" Insufficient parent 0b"+Integer.toBinaryString(parent));
+					areAllParentSuff = false;
+					break;
+				}
+			}
+			if(!areAllParentSuff) {
+				//this's an insufficient smaller set. skip
+				//isSufficient[flags] = false;
+				continue;
+			}
+			boolean isFSuff = isDVFS(gc.gInner, flags, N);
+//			System.out.println(" isDVFS gives "+isFSuff);
+			if(isFSuff) {
+				isSufficient[flags] = true;
+			} else {
+				//this is insufficient to remove, but this plus any one
+				//does suffice. So the logical negation is a good cycle
+				int cycleLen = N - Integer.bitCount(flags);
+				int[] cycle = new int[cycleLen];
+				int arrDest = 0;
+				for(int i=0; i<N; i++) {
+					if((flags & (1<<i)) == 0) {
+//						System.out.println((1<<i)+" & --> "+(flags & (1<<i)));
+						cycle[arrDest++] = gc.mapping[i];
+					}
+				}
+//				System.out.println(" *"+Arrays.toString(cycle));
+				bigCycleList.add(cycle);
+			}
+		}
+		//all minimal sets have been added
+		gc.gInner.clear();
+	}
+	
+	boolean isDVFS(Graph g_orig, int flags, int N) {
+		Graph g = g_orig.copy();
+		for(int i=0; i<N; i++) {
+			if((flags & (1<<i)) != 0)
+				g.clearVertex(i);
+		}
+		return !g.hasCycle(); 
 	}
 	
 	//Checks if the graph has a single vertex with indeg>1 (or a single with outdeg>1).
@@ -628,115 +728,6 @@ public class MinimumCoverSolver implements Solver {
 			return true;
 		}
 		return false;
-	}
-	
-	//Captures a small subgraph, together with data about its inclusion in the original. 
-	static class GraphChunk {
-		static int biggestChunk = -1;
-		
-		int[] mapping;
-		Graph gInner;
-		
-		@SuppressWarnings("unchecked")
-		public GraphChunk(Graph g, ArrayList<Integer> verts, boolean destructive) {
-			verts.sort(Integer::compare);
-			
-			int N = verts.size();
-			mapping = new int[N];
-			for(int i=0; i<N; i++)
-				mapping[i] = verts.get(i);
-			HashSet<Integer>[] eList = new HashSet[N];
-			HashSet<Integer>[] backEList = new HashSet[N];
-			for(int i=0; i<N; i++) {
-				eList[i] = new HashSet<Integer>();
-				backEList[i] = new HashSet<Integer>();
-			}
-
-			for(int i=0; i<N; i++) {
-				HashSet<Integer> eL = eList[i];
-				int iOrig = mapping[i];
-				
-				for(Iterator<Integer> jOrigIter = g.eList[iOrig].iterator();
-						jOrigIter.hasNext();
-						) {
-					int jOrig = jOrigIter.next();
-					
-					int j = Arrays.binarySearch(mapping, jOrig);
-					if(j < 0)
-						continue;//not in subgraph
-					eL.add(j);
-					backEList[j].add(i);
-
-					if(destructive) {
-//						g.eList[iOrig].remove(jOrig);
-						jOrigIter.remove();
-						
-						g.outDeg[iOrig]--;
-						g.backEList[jOrig].remove(iOrig);
-						g.inDeg[jOrig]--;
-					}
-				}
-			}
-			
-			gInner = new Graph(N, eList, backEList);
-			g.checkConsistency();
-			gInner.checkConsistency();
-			biggestChunk = Math.max(biggestChunk, N);
-//			if(Main_Load.TESTING)
-//				System.out.println("Made chunk of size "+N+", record "+biggestChunk);
-		}
-		
-		private GraphChunk(Graph g) {
-			this.gInner = g;
-			this.mapping = new int[g.N];
-			for(int i=0; i<g.N; i++) {
-				mapping[i] = i;
-			}
-		}
-		public static GraphChunk wrap(Graph g) {
-			return new GraphChunk(g);
-		}
-		
-		//adds edges in this subgraph back into parent graph
-		void addInto(Graph g) {
-			for(int i=0; i<gInner.N; i++) {
-				int iOrig = mapping[i];
-				
-				for(int j : gInner.eList[i]) {
-					int jOrig = mapping[j];
-					g.eList[iOrig].add(jOrig);
-				}
-				g.outDeg[iOrig] = g.eList[iOrig].size();
-				
-				for(int j : gInner.backEList[i]) {
-					int jOrig = mapping[j];
-					g.backEList[iOrig].add(jOrig);
-				}
-				g.inDeg[iOrig] = g.backEList[iOrig].size();
-			}
-		}
-
-		
-		//copies this induced subgraph back into parent graph
-		void copyInto(Graph g) {
-			//Clear out old edges
-			for(int i=0; i<gInner.N; i++) {
-				int iOrig = mapping[i];				
-				for(int jOrig : g.eList[iOrig]) {
-					if(Arrays.binarySearch(mapping, jOrig) >= 0) {
-						//responsibility of this induced subgraph
-						g.eList[iOrig].remove(jOrig);
-					}
-				}
-				for(int jOrig : g.backEList[iOrig]) {
-					if(Arrays.binarySearch(mapping, jOrig) >= 0) {
-						//responsibility of this induced subgraph
-						g.backEList[iOrig].remove(jOrig);
-					}
-				}
-			}
-			addInto(g);
-		}
 	}
 
 	@Override
