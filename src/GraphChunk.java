@@ -110,4 +110,10 @@ public class GraphChunk {
 		}
 		addInto(g);
 	}
+	
+	public String toString() {
+		if(gInner.E() < 150)
+			return gInner.dumpS();
+		return "GraphChunk{N="+gInner.N+",E="+gInner.E()+"}";
+	}
 }

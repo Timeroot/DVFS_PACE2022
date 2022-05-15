@@ -202,11 +202,13 @@ public class Main_Load {
 		String prefix = HEURISTIC ? "./heuristic_public/h_" : "./exact_public/e_";
 		int done=0;
 		//#37 tricky, #73 requires new cycle.
-		//#85 is killer. #93 is hard (~500s)
+		//#85 is killer, #87 is killer.
+		//#89 has a big component but should be easy.
+		//#93 is hard but feasible. (~500s)
 		//#141 gave MLE, is MIS problem
-		for(int i=13; i<=13; i+=2) {
-			if(i==85) {
-				System.out.println("SKIP 85");
+		for(int i=89; i<=107; i+=2) {
+			if(i==85 || i==87) {
+				System.out.println("SKIP "+i);
 				continue;
 			}
 			long t0 = System.currentTimeMillis();

@@ -8,7 +8,7 @@ public class Graph {
 	HashSet<Integer>[] backEList;
 	int[] inDeg, outDeg;
 	
-	static final boolean CHECK = true;
+	static final boolean CHECK = false;
 	
 	public Graph(int N_, HashSet<Integer>[] eList_, HashSet<Integer>[] backEList_,
 			int[] inDeg_, int[] outDeg_) {
@@ -174,28 +174,34 @@ public class Graph {
 		}
 		checkConsistency();
 	}
-
-	void dump() {
-		System.out.print("{");
+	
+	String dumpS() {
+		String res = "";
+		res += "{";
 		boolean firstRow = true;
 		for(int i=0; i<N; i++) {
 			if(inDeg[i] ==0 && outDeg[i] == 0)
 				continue;
 			if(!firstRow) {
-				System.out.print(",");
+				res += ",";
 			} else {
 				firstRow = false;
 			}
-			System.out.print("{");
+			res += "{";
 			boolean first = true;
 			for(int vo : eList[i]) {
 				if(!first)
-					System.out.print(", ");
-				System.out.print(i+" -> "+vo);
+					res += ", ";
+				res += i+" -> "+vo;
 				first = false;
 			}
-			System.out.println("}");
+			res += "}\n";
 		}
-		System.out.println("}");
+		res += "}\n";
+		return res;
+	}
+
+	void dump() {
+		System.out.println(dumpS());
 	}
 }

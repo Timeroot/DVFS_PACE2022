@@ -163,7 +163,7 @@ public class MinimumCoverSolver implements Solver {
 		g.checkConsistency();
 		rem_E = g.E();
 
-		g.dump();
+//		g.dump();
 
 		ArrayList<GraphChunk> rem_chunks = null;
 		if(rem_E > 0) {
@@ -187,21 +187,26 @@ public class MinimumCoverSolver implements Solver {
 		}
 		
 		if(isAllCycles) {
-			if(bigCycleList.size() == 0)
-				System.out.println("EASY: Vertex cover problem");
-			else {
-				System.out.println("MEDIUM: Minimum cover.");
+			if(bigCycleList.size() == 0) {
+				if(Main_Load.TESTING) {
+					System.out.println("EASY: Vertex cover problem");
+//					dumpK2Graph();
+				}
+			} else {
+				if(Main_Load.TESTING)
+					System.out.println("MEDIUM: Minimum cover.");
 				int maxCycleSize = 0;
 				for(int[] cycle : bigCycleList)
 					maxCycleSize = Math.max(maxCycleSize, cycle.length);
-				System.out.println(maxCycleSize+" many bigcycles, maximum size "+maxCycleSize);
+				if(Main_Load.TESTING)
+					System.out.println(maxCycleSize+" many bigcycles, maximum size "+maxCycleSize);
 			}
 			ArrayList<Integer> sol = new MinimumCover().solve(g, pairList, bigCycleList);
-			System.out.println(sol);
 			//if that returns, we definitely got a solution!
 			return sol;
 		} else {
-			System.out.println("HARD: Not minimum cover!");
+			if(Main_Load.TESTING)
+				System.out.println("HARD: Not minimum cover!");
 			MinimumCoverInfo mci = new MinimumCoverInfo(g.N, pairList, bigCycleList, rem_chunks, null);
 //			g.dump();
 		}
@@ -214,17 +219,15 @@ public class MinimumCoverSolver implements Solver {
 		return null;
 	}
 	
-	//does killSimpleCycles, fixing the indexing for chunks.
-	int killSimpleCycles(GraphChunk g) {
-		int res = killSimpleCycles(g.gInner);
-		for(int cycI = 0; cycI < res; cycI++) {
-			int savedCycI = bigCycleList.size()-1-cycI;
-			int[] cycle = bigCycleList.get(savedCycI);
-			for(int i=0; i<cycle.length; i++) {
-				cycle[i] = g.mapping[cycle[i]];
-			}
+	void dumpK2Graph() {
+		System.out.print("{");
+		for(int[] pair : pairList) {
+			System.out.print("{"+(1+pair[0])+","+(1+pair[1])+"},");
+			if(Math.random() < 0.1)
+				System.out.println();
 		}
-		return res;
+		System.out.println("}");
+		System.exit(1);
 	}
 	
 	//returns how many simple cycles were added
@@ -461,8 +464,9 @@ public class MinimumCoverSolver implements Solver {
 		boolean sccSplit = scc.doSCC(rg);
 		if(!sccSplit) {
 			//alright, it didn't split. Still make the "chunk" and process
-			GraphChunk chunk = GraphChunk.wrap(g);
-			processChunk(chunk);
+			GraphChunk chunk = GraphChunk.wrap(g.copy());
+			g.clear();
+			processChunk(chunk.gInner);
 			if(chunk.gInner.E() != 0) {
 //				chunk.addInto(g);
 //				chunk.gInner.dump();
@@ -479,8 +483,10 @@ public class MinimumCoverSolver implements Solver {
 			if(sccComp.size() > MAX_SCC_SIZE) {
 				continue;
 			}
+			int bigCycleListSizeBefore = bigCycleList.size();
 			GraphChunk chunk = new GraphChunk(g, sccComp, true);
-			processChunk(chunk);
+			processChunk(chunk.gInner);
+			fixChunksSince(bigCycleListSizeBefore, chunk.mapping);
 			if(chunk.gInner.E() != 0) {
 //				chunk.addInto(g);
 //				chunk.gInner.dump();
@@ -496,41 +502,39 @@ public class MinimumCoverSolver implements Solver {
 		}
 	}
 	
-	void processChunk(GraphChunk chunk) {
-		System.out.println("Start chunk with "+Arrays.toString(chunk.mapping));
-		int bigCycleListI = bigCycleList.size();
-		
-		chunk.gInner.dump();
-//		System.out.println("Chunky chunk "+Arrays.toString(chunk.mapping));
-		while(skipMergeLong(chunk.gInner) > 0) {
-			if(Main_Load.TESTING)
-				System.out.println("Another skipMerge was useful...");
-			chunk.gInner.checkConsistency();
+	void fixChunksSince(int bigCycleListSizeBefore, int[] mapping) {
+		for(int i=bigCycleListSizeBefore; i<bigCycleList.size(); i++) {
+			int[] cycle = bigCycleList.get(i);
+			for(int vi=0; vi<cycle.length; vi++) {
+				cycle[vi] = mapping[cycle[vi]];
+			}
 		}
-		int killed = killSimpleCycles(chunk);
-		if(chunk.gInner.E() == 0) {
-			debugNewCycles(chunk, bigCycleListI);
-			return;
-		}
-		if(checkSingleMultivert(chunk)) {
-			debugNewCycles(chunk, bigCycleListI);
-			return;
-		}
-		splitWAP(chunk);
-		debugNewCycles(chunk, bigCycleListI);
 	}
 	
-	void debugNewCycles(GraphChunk chunk, int bigCycleListI) {
-		System.out.println("Chunk with "+Arrays.toString(chunk.mapping)+" led to:");
-		for(int i=bigCycleListI; i<bigCycleList.size(); i++) {
-			System.out.println("  "+Arrays.toString(bigCycleList.get(i)));
+	void processChunk(Graph g) {
+//		System.out.println("Start chunk with "+Arrays.toString(chunk.mapping));
+//		int bigCycleListI = bigCycleList.size();
+		
+//		g.dump();
+//		System.out.println("Chunky chunk "+Arrays.toString(chunk.mapping));
+		while(skipMergeLong(g) > 0) {
+			if(Main_Load.TESTING)
+				System.out.println("Another skipMerge was useful...");
+			g.checkConsistency();
 		}
-		System.out.println("---");
+		int killed = killSimpleCycles(g);
+		if(g.E() == 0) {
+			return;
+		}
+		if(checkSingleMultivert(g)) {
+			return;
+		}
+		splitWAP(g);
 	}
 	
 	//splits on weak articulation points
-	void splitWAP(GraphChunk chunk) {
-		int wap = WeakArticulationPoints.AP_One(chunk.gInner);
+	void splitWAP(Graph chunk) {
+		int wap = WeakArticulationPoints.AP_One(chunk);
 //		if(Main_Load.TESTING)
 //			System.out.println("findAP = "+findAP);
 		if(wap == -1) {
@@ -546,7 +550,7 @@ public class MinimumCoverSolver implements Solver {
 
 		//Now we have a WAP, split into connected components.
 		//each one gets the WAP itself, too.
-		int N = chunk.gInner.N;
+		int N = chunk.N;
 		boolean[] visited = new boolean[N];
 		int[] compId = new int[N];
 		Stack<Integer> queue = new Stack<Integer>();
@@ -567,8 +571,8 @@ public class MinimumCoverSolver implements Solver {
 				continue;
 			compId[v] = numComps-1;
 			visited[v] = true;
-			queue.addAll(chunk.gInner.eList[v]);
-			queue.addAll(chunk.gInner.backEList[v]);
+			queue.addAll(chunk.eList[v]);
+			queue.addAll(chunk.backEList[v]);
 		}
 
 		@SuppressWarnings("unchecked")
@@ -584,30 +588,35 @@ public class MinimumCoverSolver implements Solver {
 //		System.out.println("Split into "+Arrays.toString(components));
 		
 		for(ArrayList<Integer> comp : components) {
-			GraphChunk gc = new GraphChunk(chunk.gInner, comp, true);
+
+			int bigCycleListSizeBefore = bigCycleList.size();
+			
+			GraphChunk gc = new GraphChunk(chunk, comp, true);
 //			System.out.println("Subgraph is ");
-			processChunk(gc);
+			processChunk(gc.gInner);
+			fixChunksSince(bigCycleListSizeBefore, gc.mapping);
 			if(gc.gInner.E() != 0) {
 //				if(Main_Load.TESTING)
 //					System.out.println("Didn't complete");
-				gc.addInto(chunk.gInner);
+				gc.addInto(chunk);
 				//TODO instead of adding chunks back in (and agglutinating over WAPs)
 				// keep them separate for other processing, maybe?
 			}
 		}
 //		System.out.println("After WAP is ");
 //		chunk.gInner.dump();
-		if(chunk.gInner.E() == 0)
+		if(chunk.E() == 0)
 			System.out.println("Splitting SOLVED this chunk");
 	}
 	
 	//Idea here is that for small chunks (< 10 vertices?) we can find a
 	//minimal set of cycles by brute force.
-	void bruteForceCycleEnumerate(GraphChunk gc) {
-		int N = gc.gInner.N;
-		if(gc.gInner.N > 20) {
-			System.out.println("Brute force not running on ");
-			gc.gInner.dump();
+	void bruteForceCycleEnumerate(Graph g) {
+		int N = g.N;
+		if(g.N > 20) {
+			if(Main_Load.TESTING)
+				System.out.println("Brute force not running on "+g);
+//			g.dump();
 			return;
 		}
 		
@@ -633,7 +642,7 @@ public class MinimumCoverSolver implements Solver {
 				//isSufficient[flags] = false;
 				continue;
 			}
-			boolean isFSuff = isDVFS(gc.gInner, flags, N);
+			boolean isFSuff = isDVFS(g, flags, N);
 //			System.out.println(" isDVFS gives "+isFSuff);
 			if(isFSuff) {
 				isSufficient[flags] = true;
@@ -646,7 +655,7 @@ public class MinimumCoverSolver implements Solver {
 				for(int i=0; i<N; i++) {
 					if((flags & (1<<i)) == 0) {
 //						System.out.println((1<<i)+" & --> "+(flags & (1<<i)));
-						cycle[arrDest++] = gc.mapping[i];
+						cycle[arrDest++] = i;
 					}
 				}
 //				System.out.println(" *"+Arrays.toString(cycle));
@@ -654,7 +663,7 @@ public class MinimumCoverSolver implements Solver {
 			}
 		}
 		//all minimal sets have been added
-		gc.gInner.clear();
+		g.clear();
 	}
 	
 	boolean isDVFS(Graph g_orig, int flags, int N) {
@@ -669,8 +678,7 @@ public class MinimumCoverSolver implements Solver {
 	//Checks if the graph has a single vertex with indeg>1 (or a single with outdeg>1).
 	//In this case, you can describe the graph just by the cycles from each those options,
 	//pretty easily. Returns "true" if this worked and the graph was resolved.
-	boolean checkSingleMultivert(GraphChunk chunk) {
-		Graph g = chunk.gInner;
+	boolean checkSingleMultivert(Graph g) {
 		int numWithIndegOver1 = 0;
 		int numWithOutdegOver1 = 0;
 		for(int i=0; i<g.N; i++) {
@@ -695,15 +703,15 @@ public class MinimumCoverSolver implements Solver {
 			}
 			for(int v2 : g.backEList[highdeg]) {
 				ArrayList<Integer> alCycle = new ArrayList<>();
-				alCycle.add(chunk.mapping[highdeg]);
+				alCycle.add(highdeg);
 				do {
-					alCycle.add(chunk.mapping[v2]);
+					alCycle.add(v2);
 					v2 = g.backEList[v2].iterator().next();
 				} while(v2 != highdeg);
 				int[] cycle = alCycle.stream().mapToInt(i -> i).toArray();
 				bigCycleList.add(cycle);
 			}
-			chunk.gInner.clear();
+			g.clear();
 			return true;
 		}
 		if(numWithOutdegOver1 == 1) {
@@ -716,15 +724,15 @@ public class MinimumCoverSolver implements Solver {
 			}
 			for(int v2 : g.eList[highdeg]) {
 				ArrayList<Integer> alCycle = new ArrayList<>();
-				alCycle.add(chunk.mapping[highdeg]);
+				alCycle.add(highdeg);
 				do {
-					alCycle.add(chunk.mapping[v2]);
+					alCycle.add(v2);
 					v2 = g.eList[v2].iterator().next();
 				} while(v2 != highdeg);
 				int[] cycle = alCycle.stream().mapToInt(i -> i).toArray();
 				bigCycleList.add(cycle);
 			}
-			chunk.gInner.clear();
+			g.clear();
 			return true;
 		}
 		return false;
