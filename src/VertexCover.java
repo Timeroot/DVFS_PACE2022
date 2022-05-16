@@ -14,7 +14,7 @@ public class VertexCover {
 	
 	//this data saves things needed to save the reduction.
 	//degree 2 foldings. For a deg-2 pattern a-b-c, this stores {0, b,a,c}.
-	//for a funnel u-v-{N(v)-u}, this saves {1, u,v, some x in N(v)\N[u] }.
+	//for a funnel u-v-{N(v)-u}, this saves {1, u,v, ...N(v)\N[u]... }.
 	static ArrayList<int[]> deg2Folds_and_funnels;
 	static ArrayList<Integer> includes;//forced inclusions from e.g. domination, deg-1..
 	
@@ -232,11 +232,14 @@ public class VertexCover {
 								}
 							}
 							//save the data for reconstructing solution later
-							int[] funnelData = new int[4];
+							int[] funnelData = new int[3 + Nv_sub_Nu.size()];
 							funnelData[0] = 1;//type=funnel
 							funnelData[1] = u;
 							funnelData[2] = v;
-							funnelData[3] = Nv_sub_Nu.iterator().next();//anything in N(v)\N(u)
+							{int dest = 3;
+							for(int x : Nv_sub_Nu)
+								funnelData[dest++] = x;//all of N(v)\N(u)
+							}
 							deg2Folds_and_funnels.add(funnelData);
 							//we progressed
 							if(LOG) System.out.println("Funnel found at "+v+" with "+u+" special");
@@ -298,8 +301,13 @@ public class VertexCover {
 			} else if(type == 1) {//funnel
 				int u = projData[1];
 				int v = projData[2];
-				int nv_sub_nu = projData[3];
-				if(solution[nv_sub_nu]) {//ALL of N(v)\N(u) is in, include u
+				boolean hasAll_nv_sub_nu = true;
+				for(int i=3; i<projData.length; i++) {
+					if(!solution[projData[i]]) {
+						hasAll_nv_sub_nu = false; break;
+					}
+				}
+				if(hasAll_nv_sub_nu) {//ALL of N(v)\N(u) is in, include u
 					solution[u] = true;
 				} else {//ALL of N(u)\N(v) is in, include v
 					solution[v] = true;
@@ -323,8 +331,14 @@ public class VertexCover {
 			int x = edge[0], y = edge[1];
 			if(solution[x] || solution[y])
 				continue;
-			if(Main_Load.TESTING)
+			if(Main_Load.TESTING) {
 					System.out.println("FAILURE");
+					System.out.println("Dumping bad solution: {");
+					for(int i=0; i<N; i++)
+						if(solution[i])
+							System.out.print(i+",");
+					System.out.println("}");
+			}
 			throw new RuntimeException("Edge {"+x+","+y+"} unfulfilled!");
 		}
 		if(Main_Load.TESTING)
