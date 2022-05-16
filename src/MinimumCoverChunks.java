@@ -1,6 +1,8 @@
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashSet;
 
 import com.sun.jna.ptr.IntByReference;
 
@@ -14,15 +16,16 @@ import static JNA_SCIP.SCIP_STATUS.*;
 import static JNA_SCIP.SCIP_RESULT.*;
 import static JNA_SCIP.SCIP_VARTYPE.*;
 
-public class JNASCIPSolver implements Solver {
+public class MinimumCoverChunks {
 
 	int N;
 	SCIP_VAR[] vars;
-	Graph g;
 	double inf;
 	SCIP_HEUR scip_heur;
+	ArrayList<GraphChunk> chunks;
+	boolean[] inChunk;
 	
-	static final boolean ECHO = true;
+	static final boolean ECHO = false;
 	
 	//How strong to presolve?
 	static final SCIP_PARAMSETTING presolve_emph = SCIP_PARAMSETTING_AGGRESSIVE;
@@ -41,7 +44,7 @@ public class JNASCIPSolver implements Solver {
 	static final boolean CALLBACK_LOGICORCONS = false;
 	
 	//Should new constraints be added in the CONSCHECK, where it's not strictly needed?
-	static final boolean CONSCHECK_ADDCONS = true;
+	static final boolean CONSCHECK_ADDCONS = false;
 	
 	//How frequently/early should the constraint handler be called?
 	static final int CONSHDLR_ENFOPRIORITY = -1;
@@ -65,13 +68,12 @@ public class JNASCIPSolver implements Solver {
 	}
 	static { checkOptions(); }//run at class load time
 	
-	@Override
-	public ArrayList<Integer> solve(Graph g) {
-		if(Main_Load.TESTING)
-			System.out.println("Solving with JNASCIPSolver");
+	public ArrayList<Integer> solve(MinimumCoverInfo mci) {
 		
-		this.g = g;
-		this.N = g.N;
+		if(Main_Load.TESTING)
+			System.out.println("Solving with MinimumCoverChunks");
+		
+		this.N = mci.N;
 		
 		//SCIP initialization
 		JSCIP.create();
@@ -86,7 +88,6 @@ public class JNASCIPSolver implements Solver {
 		JSCIP.setPresolving(presolve_emph, !ECHO);
 		JSCIP.setEmphasis(solve_emph, !ECHO);
 		
-		
 		//Allocate variables
 		vars = new SCIP_VAR[N];
 		for(int i=0; i<N; i++) {
@@ -95,7 +96,16 @@ public class JNASCIPSolver implements Solver {
 			JSCIP.addVar(vars[i]);
 		}
 		
-		ArrayList<int[]> cycleList = findTriangles(g);
+		ArrayList<int[]> cycleList = mci.pairList;
+		for(int[] cycle : cycleList) {
+			if(INIT_USE_LINEAR)
+				addLinearCons(cycle);
+			if(INIT_USE_SETPPC)
+				addSetppcCons(cycle);
+			if(INIT_USE_LOGICOR)
+				addLogicorCons(cycle);
+		}
+		cycleList = mci.bigCycleList;
 		for(int[] cycle : cycleList) {
 			if(INIT_USE_LINEAR)
 				addLinearCons(cycle);
@@ -105,31 +115,38 @@ public class JNASCIPSolver implements Solver {
 				addLogicorCons(cycle);
 		}
 
+		chunks = mci.chunks;
+		inChunk = mci.inChunk;
+		
 		AcycConshdlr conshdlr = new AcycConshdlr();
+		
 
-		SCIP_DECL_HEUREXEC heurexec =  this::heurexec;
-		scip_heur = JSCIP.includeHeurBasic("javaheur", "java-side heuristic", (byte)'j',
-				HEUR_PRIORITY, HEUR_FREQ, HEUR_FREQOFS, HEUR_MAXDEPTH, HEUR_TIMING,
-				false, heurexec, null);
+//		SCIP_DECL_HEUREXEC heurexec =  this::heurexec;
+//		scip_heur = JSCIP.includeHeurBasic("javaheur", "java-side heuristic", (byte)'j',
+//				HEUR_PRIORITY, HEUR_FREQ, HEUR_FREQOFS, HEUR_MAXDEPTH, HEUR_TIMING,
+//				false, heurexec, null);
 		
 		JSCIP.presolve();
 		JSCIP.solve();
 		
 		SCIP_STATUS scip_status = JSCIP.getStatus();
-		System.out.println("Final status "+scip_status);
+		if(Main_Load.TESTING)
+			System.out.println("Final status "+scip_status);
 		
 		//Save the variables
 		SCIP_SOL sol = JSCIP.getBestSol();
 		ArrayList<Integer> res = extractSol(sol);
 		
-		System.out.println(" -- Conshdlr times -- ");
-		System.out.println("Prop time:   "+JSCIP.conshdlrGetPropTime(conshdlr.conshdlr));
-		System.out.println("Check time:  "+JSCIP.conshdlrGetCheckTime(conshdlr.conshdlr));
-		System.out.println("EnfoLP time: "+JSCIP.conshdlrGetEnfoLPTime(conshdlr.conshdlr));
-		System.out.println("EnfoPS time: "+JSCIP.conshdlrGetEnfoPSTime(conshdlr.conshdlr));
-		System.out.println(" -- Heuristic times --");
-		System.out.println("Setup time:  "+JSCIP.heurGetSetupTime(scip_heur));
-		System.out.println("Run time:    "+JSCIP.heurGetTime(scip_heur));
+		if(Main_Load.TESTING) {	
+			System.out.println(" -- Conshdlr times -- ");
+			System.out.println("Prop time:   "+JSCIP.conshdlrGetPropTime(conshdlr.conshdlr));
+			System.out.println("Check time:  "+JSCIP.conshdlrGetCheckTime(conshdlr.conshdlr));
+			System.out.println("EnfoLP time: "+JSCIP.conshdlrGetEnfoLPTime(conshdlr.conshdlr));
+			System.out.println("EnfoPS time: "+JSCIP.conshdlrGetEnfoPSTime(conshdlr.conshdlr));
+	//		System.out.println(" -- Heuristic times --");
+	//		System.out.println("Setup time:  "+JSCIP.heurGetSetupTime(scip_heur));
+	//		System.out.println("Run time:    "+JSCIP.heurGetTime(scip_heur));
+		}
 
 		
 		//SCIP cleanup
@@ -153,11 +170,6 @@ public class JNASCIPSolver implements Solver {
 		return res;
 	}
 
-	@Override
-	public ArrayList<Integer> solve(ReducedGraph g) {
-		throw new RuntimeException("Not implemented");
-	}
-	
 	//Store no constraint data
 	class VoidData extends ConstraintData<VoidData>{
 		public VoidData copy() {return new VoidData();}
@@ -176,7 +188,8 @@ public class JNASCIPSolver implements Solver {
 		public SCIP_RESULT addCycles(SCIP_SOL sol, ArrayList<int[]> cycleList) {
 			boolean is_infeasible = false;
 			
-			System.out.println("Adding "+cycleList.size()+" cycles");
+			if(Main_Load.TESTING)
+				System.out.println("Adding "+cycleList.size()+" cycles");
 			for(int[] cycle : cycleList) {
 				
 				if(CALLBACK_ROW) {
@@ -188,8 +201,8 @@ public class JNASCIPSolver implements Solver {
 					JSCIP.flushRowExtensions(row);
 					
 					is_infeasible |= JSCIP.addRow(row, false);
-					System.out.println(" is_infeas: "+is_infeasible);
-					System.out.println(" is_cut_effic: "+JSCIP.isCutEfficacious(sol, row));
+//					System.out.println(" is_infeas: "+is_infeasible);
+//					System.out.println(" is_cut_effic: "+JSCIP.isCutEfficacious(sol, row));
 					JSCIP.releaseRow(row);
 				}
 				if(CALLBACK_GLOBALCUT) {
@@ -200,7 +213,7 @@ public class JNASCIPSolver implements Solver {
 					}
 					JSCIP.flushRowExtensions(row);
 					JSCIP.addPoolCut(row);
-					System.out.println(" is_cut_effic: "+JSCIP.isCutEfficacious(sol, row));
+//					System.out.println(" is_cut_effic: "+JSCIP.isCutEfficacious(sol, row));
 					JSCIP.releaseRow(row);
 				}
 				if(CALLBACK_LINCONS)
@@ -219,7 +232,7 @@ public class JNASCIPSolver implements Solver {
 		}
 
 		@Override
-		public SCIP_RESULT conscheck(JNASCIPSolver.VoidData[] conss, SCIP_SOL sol, boolean checkintegrality,
+		public SCIP_RESULT conscheck(MinimumCoverChunks.VoidData[] conss, SCIP_SOL sol, boolean checkintegrality,
 				boolean checklprows, boolean printreason, boolean completely) {
 			if(conss.length > 0)
 				throw new RuntimeException(); //where did you get a constraint from?
@@ -228,14 +241,15 @@ public class JNASCIPSolver implements Solver {
 			ArrayList<int[]> cycleList = null;
 			boolean acyc;
 			
-			if(CONSCHECK_ADDCONS) {
-				cycleList = digForCycles(trySol, GenCyclesMode.CHECK_ACYC);
+//			if(CONSCHECK_ADDCONS) {
+				cycleList = digForCycles(trySol);
 				acyc = cycleList.size()==0;
-			} else {
-				acyc = !hasCycle(trySol);
-			}
+//			} else {
+//				acyc = !hasCycle(trySol);
+//			}
 
-			System.out.println("CONSCHECK with n="+trySol.size()+", acyc?="+acyc+" Opts:"+(checkintegrality?'T':'F')+(checklprows?'T':'F')+(printreason?'T':'F')+(completely?'T':'F'));
+			if(Main_Load.TESTING)
+				System.out.println("CONSCHECK with n="+trySol.size()+", acyc?="+acyc+" Opts:"+(checkintegrality?'T':'F')+(checklprows?'T':'F')+(printreason?'T':'F')+(completely?'T':'F'));
 			
 			if(acyc)
 				return SCIP_FEASIBLE;
@@ -248,22 +262,26 @@ public class JNASCIPSolver implements Solver {
 		}
 
 		@Override
-		public SCIP_RETCODE conslock(JNASCIPSolver.VoidData cons, SCIP_LOCKTYPE locktype, int nlockspos,
+		public SCIP_RETCODE conslock(MinimumCoverChunks.VoidData cons, SCIP_LOCKTYPE locktype, int nlockspos,
 				int nlocksneg) {
 			if(cons != null)
 				return SCIP_ERROR; //where did you get a constraint from, what?
 			
 			//Lock everything from below
-			for(SCIP_VAR var : vars)
-				JSCIP.addVarLocksType(var, SCIP_LOCKTYPE_MODEL, nlockspos, nlocksneg);
+			for(int i=0; i<N; i++) {
+				if(!inChunk[i])
+					continue;
+				JSCIP.addVarLocksType(vars[i], SCIP_LOCKTYPE_MODEL, nlockspos, nlocksneg);
+			}
 			
 			return SCIP_OKAY;
 		}
 
 		@Override
-		public SCIP_RESULT consenfops(JNASCIPSolver.VoidData[] conss, int nusefulconss, boolean solinfeasible,
+		public SCIP_RESULT consenfops(MinimumCoverChunks.VoidData[] conss, int nusefulconss, boolean solinfeasible,
 				boolean objinfeasible) {
-			System.out.println("CONSENFOPS?");
+			if(Main_Load.TESTING)
+				System.out.println("CONSENFOPS?");
 			if(conss.length > 0)
 				throw new RuntimeException(); //where did you get a constraint from, what?
 
@@ -271,13 +289,14 @@ public class JNASCIPSolver implements Solver {
 		}
 
 		@Override
-		public SCIP_RESULT consenfolp(JNASCIPSolver.VoidData[] conss, int nusefulconss, boolean solinfeasible) {
+		public SCIP_RESULT consenfolp(MinimumCoverChunks.VoidData[] conss, int nusefulconss, boolean solinfeasible) {
 			if(conss.length > 0)
 				throw new RuntimeException(); //where did you get a constraint from, what?
 
 			ArrayList<Integer> trySol = extractSol(null);
-			ArrayList<int[]> cycleList = digForCycles(trySol, GenCyclesMode.EDGE_DFS_GENEROUS);
-			System.out.println("CONSENFOLP with n="+trySol.size()+", cyc="+cycleList.size());
+			ArrayList<int[]> cycleList = digForCycles(trySol);
+			if(Main_Load.TESTING)
+				System.out.println("CONSENFOLP with n="+trySol.size()+", cyc="+cycleList.size());
 			
 			if(cycleList.size() == 0)
 				return SCIP_FEASIBLE;
@@ -287,159 +306,102 @@ public class JNASCIPSolver implements Solver {
 		}
 
 		@Override
-		public SCIP_RETCODE consdelete(JNASCIPSolver.VoidData cons) {
+		public SCIP_RETCODE consdelete(MinimumCoverChunks.VoidData cons) {
 			throw new RuntimeException("Consdelete on .. what? "+cons);//this should never be called
 		}
 	}
 	
-	//Adds in all the triangles first (and pairs, in case those are in there)
-	ArrayList<int[]> findTriangles(Graph g) {
+//	public SCIP_RETCODE heurexec(SCIP scip, SCIP_HEUR heur, SCIP_HEURTIMING heurtiming, boolean nodeinfeasible,
+//			IntByReference scip_result) {
+//		System.out.println("HEUREXEC CALLED");
+//		ReducedGraph heurSolGraph = ReducedGraph.fromGraph(g);
+//		
+//		//Read out the current fixings, construct effective graph
+//		int trueCount = 0, falseCount = 0;
+//		for(int i=0; i<N; i++) {
+//			SCIP_VAR var = vars[i];
+//			double lbL = JSCIP.varGetLbLocal(var);
+//			double ubL = JSCIP.varGetUbLocal(var);
+//			boolean fixedTrue = lbL == 1.0;
+//			boolean fixedFalse = ubL == 0.0;
+//			if(fixedTrue) {
+////				System.out.println("Selfloop on "+i);
+//				trueCount++;
+//				heurSolGraph.addSelfLoop(i);
+//			} else if(fixedFalse) {
+////				System.out.println("Contract in "+i);
+//				falseCount++;
+//				heurSolGraph.contractIn(i);
+//			}
+////			System.out.println("Var "+JSCIP.varGetName(var)+" in ["+lbL+","+ubL+"]. fT="+fixedTrue+", fF="+fixedFalse);
+//		}
+//		
+//		//Solve with a Java-side heuristic 
+//		ArrayList<Integer> heurSol = ExactSolver_Heuristic.solve(heurSolGraph);
+//		System.out.println("Got a solution with N="+heurSol.size()+", tC="+trueCount+", fC="+falseCount);
+////		System.out.println(heurSol);
+//		
+//		//Submit solution back to SCIP
+//		SCIP_SOL scip_sol = JSCIP.createSol(scip_heur);
+//		for(int i=0; i<N; i++) {
+//			JSCIP.setSolVal(scip_sol, vars[i], 0.0);
+//		}
+//		for(int i : heurSol) {
+//			JSCIP.setSolVal(scip_sol, vars[i], 1.0);
+//		}
+//		
+//		boolean stored = JSCIP.trySol(scip_sol, true, false, true, false, true);
+//		System.out.println("Was solsution stored? "+stored);
+//		
+//		JSCIP.freeSol(scip_sol);
+//		
+//		scip_result.setValue(SCIP_RESULT.SCIP_FOUNDSOL.ordinal());
+//		return SCIP_RETCODE.SCIP_OKAY;
+//	}
+
+//	boolean hasCycle(ArrayList<Integer> trySol) {
+//		Graph g = this.g.copy();
+//		for(int i : trySol) {
+//			g.clearVertex(i);
+//		}
+//		return g.hasCycle();
+//	}
+
+	ArrayList<int[]> digForCycles(ArrayList<Integer> trySolList) {
+		HashSet<Integer> trySol = new HashSet<>(trySolList);
 		ArrayList<int[]> cycleList = new ArrayList<int[]>();
-		int pairsAdded = 0;
-		int trisAdded = 0;
-		
-		long startT = System.currentTimeMillis();
-		
-		for(int i=0; i<g.N; i++) {
-			for(int j : g.eList[i]) {
-				if(j < i)//skip
-					continue;
-				
-				//check for a pair
-				if(g.eList[j].contains(i)) {
-					cycleList.add(new int[]{i,j});
-					pairsAdded++;
-					continue;//if we got a pair don't need to worry about triangles.
-				}
-				
-				//check for a triangle
-				for(int k : g.eList[j]) {
-					if(k < i)//skip
-						continue;
-					
-					if(g.eList[k].contains(i)) {
-						cycleList.add(new int[]{i,j,k});
-						trisAdded++;
-					}
-				}
-			}
+		for(GraphChunk ch : chunks) {
+			cycleList.addAll(digForCyclesInChunk(trySol, ch));
 		}
-		
-		long time = System.currentTimeMillis() - startT;
-		if(Main_Load.TESTING) System.out.println("FindTri took "+(time*0.001)+"sec, found "+pairsAdded+" K2 and "+trisAdded+" K3");
-		
 		return cycleList;
 	}
-
-	public SCIP_RETCODE heurexec(SCIP scip, SCIP_HEUR heur, SCIP_HEURTIMING heurtiming, boolean nodeinfeasible,
-			IntByReference scip_result) {
-		System.out.println("HEUREXEC CALLED");
-		ReducedGraph heurSolGraph = ReducedGraph.fromGraph(g);
-		
-		//Read out the current fixings, construct effective graph
-		int trueCount = 0, falseCount = 0;
-		for(int i=0; i<N; i++) {
-			SCIP_VAR var = vars[i];
-			double lbL = JSCIP.varGetLbLocal(var);
-			double ubL = JSCIP.varGetUbLocal(var);
-			boolean fixedTrue = lbL == 1.0;
-			boolean fixedFalse = ubL == 0.0;
-			if(fixedTrue) {
-//				System.out.println("Selfloop on "+i);
-				trueCount++;
-				heurSolGraph.addSelfLoop(i);
-			} else if(fixedFalse) {
-//				System.out.println("Contract in "+i);
-				falseCount++;
-				heurSolGraph.contractIn(i);
-			}
-//			System.out.println("Var "+JSCIP.varGetName(var)+" in ["+lbL+","+ubL+"]. fT="+fixedTrue+", fF="+fixedFalse);
-		}
-		
-		//Solve with a Java-side heuristic 
-		ArrayList<Integer> heurSol = ExactSolver_Heuristic.solve(heurSolGraph);
-		System.out.println("Got a solution with N="+heurSol.size()+", tC="+trueCount+", fC="+falseCount);
-//		System.out.println(heurSol);
-		
-		//Submit solution back to SCIP
-		SCIP_SOL scip_sol = JSCIP.createSol(scip_heur);
-		for(int i=0; i<N; i++) {
-			JSCIP.setSolVal(scip_sol, vars[i], 0.0);
-		}
-		for(int i : heurSol) {
-			JSCIP.setSolVal(scip_sol, vars[i], 1.0);
-		}
-		
-		boolean stored = JSCIP.trySol(scip_sol, true, false, true, false, true);
-		System.out.println("Was solsution stored? "+stored);
-		
-		JSCIP.freeSol(scip_sol);
-		
-		scip_result.setValue(SCIP_RESULT.SCIP_FOUNDSOL.ordinal());
-		return SCIP_RETCODE.SCIP_OKAY;
-	}
-
-	//Given a graph and SCIP's output 'solution', check for any cycles. If at least one is found,
-	//put it in cycleList and return "false". Otherwise, return true;
-	//
-	//mode specifies the method for generating edges. *_DFS does a DFS to find one cycle.
-	// CHECK_ACYC just tries to find a single cycle.
-	// VERTEX_DFS removes all used vertices after, and repeats.
-	// VERTEX_DFS_GENEROUS removes only one used vertex.
-	// EDGE_DFS removes all but one used edges.
-	// EDGE_DFS_GENEROUS removes only one used edge.
-	//EDGE_DFS will obviously generate (typically) more cycles.
-	enum GenCyclesMode {
-		CHECK_ACYC,
-		VERTEX_DFS,
-		VERTEX_DFS_GENEROUS,
-		EDGE_DFS,
-		EDGE_DFS_GENEROUS,
-	};
 	
-	boolean hasCycle(ArrayList<Integer> trySol) {
-		Graph g = this.g.copy();
-		for(int i : trySol) {
-			g.clearVertex(i);
-		}
-		return g.hasCycle();
-	}
-
-	ArrayList<int[]> digForCycles(ArrayList<Integer> trySol, GenCyclesMode mode) {
+	ArrayList<int[]> digForCyclesInChunk(HashSet<Integer> trySol, GraphChunk chunk) {
 		ArrayList<int[]> cycleList = new ArrayList<int[]>();
 		
 		//Here's one way to get some cycles.
 		//Copy it, remove all the vertices in trySol, then do a DFS to get a cycle.
-		Graph g = this.g.copy();
-		for(int i : trySol) {
-			g.clearVertex(i);
+		Graph g = chunk.gInner.copy();
+		for(int i0=0; i0<g.N; i0++) {
+			int i = chunk.mapping[i0];
+			if(trySol.contains(i))
+				g.clearVertex(i0);
 		}
 		
 		int cyclesAdded = 0;
 		
 		ArrayDeque<Integer> cycQ;
 		while((cycQ = g.findCycleDFS()) != null) {
+			//remove that cycle from the graph, hope we get another one.
+			g.clearEdge(cycQ.peekLast(), cycQ.peekFirst());
 			//put it in the cycle list
-			int[] cyc = cycQ.stream().mapToInt(i -> i).toArray();
+			int[] cyc = cycQ.stream().mapToInt(i -> chunk.mapping[i]).toArray();
 			cycleList.add(cyc);
 			cyclesAdded++;
-			//remove that cycle from the graph, hope we get another one.
-			if(mode == GenCyclesMode.CHECK_ACYC) {
-				break;
-			} else if(mode == GenCyclesMode.VERTEX_DFS) {
-				for(int i : cyc)
-					g.clearVertex(i);
-			} else if(mode == GenCyclesMode.VERTEX_DFS_GENEROUS) {
-				g.clearVertex(cyc[0]);
-			} else if(mode == GenCyclesMode.EDGE_DFS) {
-				for(int ii=0; ii<cyc.length - 1; ii++)
-					g.clearEdge(cyc[ii], cyc[ii+1]);
-			} else if(mode == GenCyclesMode.EDGE_DFS_GENEROUS) {
-				g.clearEdge(cyc[0], cyc[1]);
-			} 
 		}
 		
-		if(Main_Load.TESTING) System.out.println("Dig gave "+cyclesAdded+" new cycles.");
+		if(Main_Load.TESTING)
+			System.out.println("Dig gave "+cyclesAdded+" new cycles.");
 		return cycleList;
 	}
 	

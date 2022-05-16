@@ -23,7 +23,7 @@ public class MinimumCover {
 	SCIP_VAR[] vars;
 	double inf;
 	
-	static final boolean ECHO = true;
+	static final boolean ECHO = false;
 	static final boolean ECHO_SETTINGS = false;
 	
 	//if true, uses the negation of each variable -- might be better for some heuristics?
@@ -33,11 +33,15 @@ public class MinimumCover {
 	static final SCIP_PARAMSETTING presolve_emph = SCIP_PARAMSETTING_AGGRESSIVE;
 	static final SCIP_PARAMEMPHASIS solve_emph = SCIP_PARAMEMPHASIS_OPTIMALITY;
 	
-	public ArrayList<Integer> solve(Graph orig, ArrayList<int[]> pairList, ArrayList<int[]> bigCycleList) {
+//	public ArrayList<Integer> solve(int N_, ArrayList<int[]> pairList, ArrayList<int[]> bigCycleList) {
+	public boolean[] solve(MinimumCoverInfo mci) {
 		if(Main_Load.TESTING)
 			System.out.println("Solving with MinimumCover");
 		
-		N = orig.N;
+		if(mci.chunks.size() > 0)
+			throw new RuntimeException("MinimumCover doesn't support chunks right now");
+		
+		N = mci.N;
 		
 		//SCIP initialization
 		JSCIP.create();
@@ -51,7 +55,7 @@ public class MinimumCover {
 		
 		JSCIP.setPresolving(presolve_emph, !(ECHO_SETTINGS && ECHO));
 		JSCIP.setEmphasis(solve_emph, !(ECHO_SETTINGS && ECHO));
-		
+
 		
 		//Allocate variables
 		vars = new SCIP_VAR[N];
@@ -61,11 +65,11 @@ public class MinimumCover {
 			JSCIP.addVar(vars[i]);
 		}
 		
-		for(int[] pair : pairList) {
+		for(int[] pair : mci.pairList) {
 			addLinearCons(pair);
 		}
 		
-		for(int[] cycle : bigCycleList) {
+		for(int[] cycle : mci.bigCycleList) {
 			addLinearCons(cycle);
 		}
 
@@ -82,11 +86,12 @@ public class MinimumCover {
 		JSCIP.solve();
 		
 		SCIP_STATUS scip_status = JSCIP.getStatus();
-		System.out.println("Final status "+scip_status);
+		if(Main_Load.TESTING)
+			System.out.println("Final status "+scip_status);
 		
 		//Save the variables
 		SCIP_SOL sol = JSCIP.getBestSol();
-		ArrayList<Integer> res = extractSol(sol);
+		boolean[] res = extractSol(sol);
 		
 		//SCIP cleanup
 		for(int i=0; i<N; i++) {
@@ -97,13 +102,12 @@ public class MinimumCover {
 		return res;
 	}
 	
-	ArrayList<Integer> extractSol(SCIP_SOL sol){
-		ArrayList<Integer> res = new ArrayList<>();
-		res.clear();		
+	boolean[] extractSol(SCIP_SOL sol){
+		boolean[] res = new boolean[N];
 		for(int i=0; i<N; i++) {
 			double val = JSCIP.getSolVal(sol, vars[i]);
 			if((val > 0.5) ^ NEGATE) {
-				res.add(i);
+				res[i] = true;
 			}
 		}
 		return res;

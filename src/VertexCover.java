@@ -20,6 +20,7 @@ public class VertexCover {
 	
 	static final boolean CHECK_TWINS = false;
 	static final boolean VERIFY = true;
+	static final boolean LOG = false;
 	
 	public static ArrayList<Integer> solve(ArrayList<int[]> _edges, int _N) {
 		//reduction data for rebuilding solution
@@ -65,7 +66,7 @@ public class VertexCover {
 					//include the other
 					includes.add(other);
 					clearVertex(other);
-					System.out.println("Remove degone "+v+"-"+other);
+					if(LOG) System.out.println("Remove degone "+v+"-"+other);
 					progress = true;
 					continue;
 				}
@@ -86,7 +87,7 @@ public class VertexCover {
 						includes.add(oB);
 						clearVertex(oB);
 						//we progressed
-						System.out.println("Remove simplicial degtwo {"+v+","+oA+","+oB+"}");
+						if(LOG) System.out.println("Remove simplicial degtwo {"+v+","+oA+","+oB+"}");
 						progress = true;
 						continue;
 					} else {
@@ -112,7 +113,7 @@ public class VertexCover {
 						foldData[3] = oB;
 						deg2Folds_and_funnels.add(foldData);
 						//we progressed
-						System.out.println("Fold degtwo {"+v+","+oA+","+oB+"}");
+						if(LOG) System.out.println("Fold degtwo {"+v+","+oA+","+oB+"}");
 						progress = true;
 						continue;
 					}
@@ -145,7 +146,7 @@ public class VertexCover {
 						//remove v itself
 						clearVertex(v);
 						//we progressed
-						System.out.println("Delete simplicial of degree "+deg+" ("+v+")");
+						if(LOG) System.out.println("Delete simplicial of degree "+deg+" ("+v+")");
 						progress = true;
 						continue;
 					}
@@ -178,7 +179,7 @@ public class VertexCover {
 						//v must be in an optimum solution
 						includes.add(v);
 						clearVertex(v);
-						System.out.println("Include dominating vertex of deg "+deg+" ("+v+")");
+						if(LOG) System.out.println("Include dominating vertex of deg "+deg+" ("+v+")");
 						progress = true;
 						continue;
 					}
@@ -238,14 +239,14 @@ public class VertexCover {
 							funnelData[3] = Nv_sub_Nu.iterator().next();//anything in N(v)\N(u)
 							deg2Folds_and_funnels.add(funnelData);
 							//we progressed
-							System.out.println("Funnel found at "+v+" with "+u+" special");
+							if(LOG) System.out.println("Funnel found at "+v+" with "+u+" special");
 							progress = true;
 							continue;
 						}
 					}
 				}
 			}
-			System.out.println("End pass");
+			if(LOG) System.out.println("End pass");
 		}
 		
 		//Check for twins
@@ -310,8 +311,9 @@ public class VertexCover {
 		
 		verify(solution, _edges);
 		
-		System.exit(1);
-		return null;
+		return getTrues(solution);
+//		System.exit(1);
+//		return null;
 	}
 	
 	static void verify(boolean[] solution, ArrayList<int[]> edgeList) {
@@ -321,10 +323,12 @@ public class VertexCover {
 			int x = edge[0], y = edge[1];
 			if(solution[x] || solution[y])
 				continue;
-			System.out.println("FAILURE");
+			if(Main_Load.TESTING)
+					System.out.println("FAILURE");
 			throw new RuntimeException("Edge {"+x+","+y+"} unfulfilled!");
 		}
-		System.out.println("Verified");
+		if(Main_Load.TESTING)
+			System.out.println("Verified");
 	}
 	
 	static void checkConsistency() {
@@ -337,12 +341,35 @@ public class VertexCover {
 		}
 	}
 	
+	static ArrayList<Integer> getTrues(boolean[] bools){
+		ArrayList<Integer> res = new ArrayList<>();
+		for(int i=0; i<bools.length; i++)
+			if(bools[i])
+				res.add(i);
+		return res;
+	}
+	
 	//After reductions are all done, solve what's left the slow way
 	static boolean[] solveCore() {
-		boolean[] res = new boolean[N];
 		if(numNonz() > 0) {
-			throw new RuntimeException("We don't actually solve the core yet");
+			ArrayList<int[]> pairList = makeK2List();
+			MinimumCoverInfo mci = new MinimumCoverInfo(N, pairList, null, null, null);
+			boolean[] res = new MinimumCover().solve(mci);
+			return res;
+//			throw new RuntimeException("We don't actually solve the core yet");
+		} else {
+			//nothing in the graph, return empty
+			boolean[] res = new boolean[N];
+			return res;
 		}
+	}
+	
+	static ArrayList<int[]> makeK2List() {
+		ArrayList<int[]> res = new ArrayList<>();
+		for(int i=0; i<N; i++)
+			for(int j : neighbors[i])
+				if(j > i)
+					res.add(new int[]{i,j});
 		return res;
 	}
 	

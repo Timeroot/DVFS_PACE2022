@@ -23,6 +23,12 @@ public class MinimumCoverInfo {
 		this.chunks = _c;
 		this.heurSol = _heurSol;
 		
+		if(this.bigCycleList == null)
+			this.bigCycleList = new ArrayList<>();
+		
+		if(this.chunks == null)
+			this.chunks = new ArrayList<>();
+		
 		this.inChunk = new boolean[N];
 		for(GraphChunk ch : chunks) {
 			for(int v : ch.mapping)

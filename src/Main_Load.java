@@ -22,7 +22,7 @@ public class Main_Load {
 	
 	boolean foundSol = false;
 	
-	static final boolean TESTING = true;
+	static final boolean TESTING = false;
 	static final boolean VERBOSE = TESTING && false;
 	static final boolean HEURISTIC = false;
 	
@@ -203,15 +203,15 @@ public class Main_Load {
 		int done=0;
 		//#37 tricky, #73 requires new cycle. --outdated, for callback solver
 		//#85 is killer, #87 is killer. Both VC problems.
-		//#89 has a big component (size 26) but is easy if you want. Can be resolved
+		//#89 has a big component (size 26) but is easy if you wait. Can be resolved
 		//by implementing component edge-splitting, then it'll be very fast.
 		//#93 is hard but feasible. (~500s) --outdated, easy now
 		//#101 had a funny "big chunk" glitch but now only takes ~115s.
 		//#103, #109, #111: hard VC problems.
 		//#105 has a large chunk of size 744. #107 has sizes 55, 37, 45, 32, 70...
 		//#141 gave MLE, is MIS problem
-		for(int i=85; i<=121; i+=2) {
-//			if(i==85 || i==87 || i==103 || i==105 || i==107 || i==109) {
+		for(int i=107; i<=107; i+=2) {
+//			if(i==107) {
 //				System.out.println("SKIP "+i);
 //				continue;
 //			}
@@ -248,6 +248,7 @@ public class Main_Load {
 				verify(inName, outName);
 			} else {
 				System.out.println("Didn't verify because no solution found");
+				throw new RuntimeException();
 			}
 			done++;
 			System.out.println("Took "+(System.currentTimeMillis()-t0)*0.001+"sec");

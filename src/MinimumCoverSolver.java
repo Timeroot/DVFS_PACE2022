@@ -19,6 +19,7 @@ public class MinimumCoverSolver implements Solver {
 	
 	static final boolean ECHO = false;
 	static final int MAX_SCC_SIZE = 100;
+	static final int BRUTE_LIMIT = 20;
 	
 	public MinimumCoverSolver() {}
 
@@ -115,7 +116,8 @@ public class MinimumCoverSolver implements Solver {
 		
 		//Is it all cycles?
 		boolean isAllCycles = isAllCycles(g);
-		System.out.println("isAllCycles == "+isAllCycles);
+		if(Main_Load.TESTING)
+			System.out.println("isAllCycles == "+isAllCycles);
 		
 		killSimpleCycles(g);
 		
@@ -133,9 +135,11 @@ public class MinimumCoverSolver implements Solver {
 		//skipMergeLong improves this to include things like a->b->c->d->e, a->e.
 		if(!isAllCycles) {
 			int skipMerged = skipMerge(g);
-			System.out.println("Skipmerged = "+skipMerged);
+			if(Main_Load.TESTING)
+				System.out.println("Skipmerged = "+skipMerged);
 			isAllCycles = isAllCycles(g);
-			System.out.println("isAllCycles2 == "+isAllCycles);
+			if(Main_Load.TESTING)
+				System.out.println("isAllCycles2 == "+isAllCycles);
 			
 			killSimpleCycles(g);
 			rem_E = g.E();
@@ -148,9 +152,11 @@ public class MinimumCoverSolver implements Solver {
 		if(!isAllCycles) {
 			int skipMergeLong = skipMergeLong(g);
 			if(skipMergeLong > 0) {
-				System.out.println("skipMergeLong! is "+skipMergeLong);
+				if(Main_Load.TESTING)
+					System.out.println("skipMergeLong! is "+skipMergeLong);
 				isAllCycles = isAllCycles(g);
-				System.out.println("isAllCycles3 == "+isAllCycles);
+				if(Main_Load.TESTING)
+					System.out.println("isAllCycles3 == "+isAllCycles);
 				
 				killSimpleCycles(g);
 				
@@ -179,9 +185,11 @@ public class MinimumCoverSolver implements Solver {
 			if(Main_Load.TESTING) {
 				System.out.println("ProcessSCC "+(isAllCycles?"worked":"failed"));
 				if(rem_chunks != null) {
-					System.out.println("Couldn't split");
+					if(Main_Load.TESTING)
+						System.out.println("Couldn't split");
 //					g.dump();
-					System.out.println(rem_chunks);
+					if(Main_Load.TESTING)
+						System.out.println(rem_chunks);
 				}
 			}
 		}
@@ -192,6 +200,7 @@ public class MinimumCoverSolver implements Solver {
 					System.out.println("EASY: Vertex cover problem");
 //					dumpK2Graph();
 				}
+//				return null;
 				return VertexCover.solve(pairList, g.N);
 			} else {
 				if(Main_Load.TESTING)
@@ -201,14 +210,20 @@ public class MinimumCoverSolver implements Solver {
 					maxCycleSize = Math.max(maxCycleSize, cycle.length);
 				if(Main_Load.TESTING)
 					System.out.println(maxCycleSize+" many bigcycles, maximum size "+maxCycleSize);
+				MinimumCoverInfo mci = new MinimumCoverInfo(g.N, pairList, bigCycleList, null, null);
+				boolean[] sol = new MinimumCover().solve(mci);
+				//if that returns, we definitely got a solution!
+//				return null;
+				return getTrues(sol);
 			}
-			ArrayList<Integer> sol = new MinimumCover().solve(g, pairList, bigCycleList);
-			//if that returns, we definitely got a solution!
-			return sol;
 		} else {
 			if(Main_Load.TESTING)
 				System.out.println("HARD: Not minimum cover!");
 			MinimumCoverInfo mci = new MinimumCoverInfo(g.N, pairList, bigCycleList, rem_chunks, null);
+			ArrayList<Integer> sol = new MinimumCoverChunks().solve(mci);
+			if(Main_Load.TESTING)
+				System.out.println("!!!!!!");
+			return sol;
 //			g.dump();
 		}
 		//check e_019 for improved skipMerge
@@ -217,7 +232,14 @@ public class MinimumCoverSolver implements Solver {
 		
 		//Check if it is purely cycles at this point
 //		System.exit(1);
-		return null;
+	}
+	
+	static ArrayList<Integer> getTrues(boolean[] bools){
+		ArrayList<Integer> res = new ArrayList<>();
+		for(int i=0; i<bools.length; i++)
+			if(bools[i])
+				res.add(i);
+		return res;
 	}
 	
 	void dumpK2Graph() {
@@ -606,13 +628,12 @@ public class MinimumCoverSolver implements Solver {
 		}
 //		System.out.println("After WAP is ");
 //		chunk.gInner.dump();
-		if(chunk.E() == 0)
+		if(Main_Load.TESTING && chunk.E() == 0)
 			System.out.println("Splitting SOLVED this chunk");
 	}
 	
 	//Idea here is that for small chunks (< 10 vertices?) we can find a
 	//minimal set of cycles by brute force.
-	static final int BRUTE_LIMIT = 26;
 	void bruteForceCycleEnumerate(Graph g) {
 		int N = g.N;
 		
