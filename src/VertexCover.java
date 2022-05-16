@@ -211,7 +211,7 @@ public class VertexCover {
 							Nu_sub_Nv.removeAll(Nv);
 							//intersection of neighborhoods
 							HashSet<Integer> Nu_cap_Nv = new HashSet<Integer>(Nu);
-							Nu_cap_Nv.removeAll(Nv_sub_Nu);
+							Nu_cap_Nv.removeAll(Nu_sub_Nv);
 							//okay, data is ready, do the operations.
 							//remove u and v from the graph
 							clearVertex(u);
@@ -395,6 +395,15 @@ public class VertexCover {
 			res ^= 0x123456789ABCDEFL * aL * (1+aL) * (100000+aL);
 		}
 		return res;
+	}
+	
+	static void dump() {
+		System.out.println("{");
+		for(int i=0; i<N; i++)
+			for(int j : neighbors[i])
+				if(i<j)
+					System.out.println("{"+i+","+j+"},");
+		System.out.println("}");
 	}
 	
 	//stores edges as Longs: 32bits for the first vertex, 32 for the second vertex.
