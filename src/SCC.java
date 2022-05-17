@@ -13,7 +13,7 @@ public class SCC {
 	//This array contains a list of SCCs (each given by a stack of vertex indices).
 	//It is not always populated. A call to SCC() will try to populate it.
 	//If SCC() returns true, then it found a split, and the component lists will be put in sccInfo.
-	//If SCC() returns false, it will be unmodified or cleared.
+	//If SCC() returns false, it will be cleared.
 	
 	ArrayList<ArrayList<Integer>> sccInfo = new ArrayList<>();
 

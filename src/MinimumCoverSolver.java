@@ -17,9 +17,7 @@ public class MinimumCoverSolver implements Solver {
 	ArrayList<int[]> pairList;
 	ArrayList<int[]> bigCycleList;
 	
-	static final boolean ECHO = false;
-	static final int MAX_SCC_SIZE = 100;
-	static final int BRUTE_LIMIT = 20;
+	static final int BRUTE_LIMIT = 15;
 	
 	public MinimumCoverSolver() {}
 
@@ -177,19 +175,20 @@ public class MinimumCoverSolver implements Solver {
 				System.out.println("Start processSCC");
 			rem_chunks = processSCC(g);
 			//all edges should be pulled out into chunks
+			
 			rem_E = g.E();
 			if(rem_E != 0)
 				throw new RuntimeException("processSCC didn't clear it?");
 			
 			isAllCycles = (rem_chunks == null);
-			if(Main_Load.TESTING) {
+			if(Main_Load.TESTING)
 				System.out.println("ProcessSCC "+(isAllCycles?"worked":"failed"));
-				if(rem_chunks != null) {
-					if(Main_Load.TESTING)
-						System.out.println("Couldn't split");
-//					g.dump();
-					if(Main_Load.TESTING)
-						System.out.println(rem_chunks);
+			
+			if(rem_chunks != null) {
+				if(Main_Load.TESTING)
+					System.out.println("Couldn't split");
+				if(Main_Load.TESTING) {
+					System.out.println("Rem_chunks = "+rem_chunks);
 				}
 			}
 		}
@@ -331,6 +330,40 @@ public class MinimumCoverSolver implements Solver {
 			}
 		}
 		return skipMerged;
+	}
+
+	//A 3-cycle with a degree-2 vertex can be added to the cycle list and have
+	//the degree-2 vertex removed:
+	// in a->b->c->a, with extra edges d->b->e and f->c->g, (so a has indeg=outdeg=1)
+	// add {a,b,c} to cycles and delete a.
+	int dropC3(Graph g) {
+		int dropped = 0;
+		for(int i=0; i<g.N; i++) {
+			int inDeg = g.inDeg[i];
+			int outDeg = g.outDeg[i];
+			if(inDeg == 1 && outDeg == 1) {
+				int prevA = g.backEList[i].iterator().next();
+				int nextC = g.eList[i].iterator().next();
+				if(g.backEList[prevA].contains(nextC)) {
+//					if(true)
+//						System.exit(1);
+					//Simplify!
+					g.eList[i].clear();
+					g.backEList[i].clear();
+					g.inDeg[i] = 0;
+					g.outDeg[i] = 0;
+					g.eList[prevA].remove(i);
+					g.outDeg[prevA]--;
+					g.backEList[nextC].remove(i);
+					g.inDeg[nextC]--;
+					
+					bigCycleList.add(new int[]{i, prevA, nextC});
+					g.checkConsistency();
+					dropped++;
+				}
+			}
+		}
+		return dropped;
 	}
 	
 	//From a vertex v, follows a path from v until it hits a vertex with
@@ -486,6 +519,7 @@ public class MinimumCoverSolver implements Solver {
 		SCC scc = new SCC();
 		boolean sccSplit = scc.doSCC(rg);
 		if(!sccSplit) {
+			System.out.println("No split");
 			//alright, it didn't split. Still make the "chunk" and process
 			GraphChunk chunk = GraphChunk.wrap(g.copy());
 			g.clear();
@@ -503,9 +537,6 @@ public class MinimumCoverSolver implements Solver {
 		
 		ArrayList<GraphChunk> res = new ArrayList<>();
 		for(ArrayList<Integer> sccComp : scc.sccInfo) {
-			if(sccComp.size() > MAX_SCC_SIZE) {
-				continue;
-			}
 			int bigCycleListSizeBefore = bigCycleList.size();
 			GraphChunk chunk = new GraphChunk(g, sccComp, true);
 			processChunk(chunk.gInner);
@@ -540,11 +571,14 @@ public class MinimumCoverSolver implements Solver {
 		
 //		g.dump();
 //		System.out.println("Chunky chunk "+Arrays.toString(chunk.mapping));
-		while(skipMergeLong(g) > 0) {
+		while((skipMergeLong(g) > 0) ||
+				(dropC3(g) > 0)) {
+			stripDegZero(g);
 			if(Main_Load.TESTING)
-				System.out.println("Another skipMerge was useful...");
+				System.out.println("Another skipMerge or dropC3 was useful...");
 			g.checkConsistency();
 		}
+		stripDegZero(g);
 		int killed = killSimpleCycles(g);
 		if(g.E() == 0) {
 			return;
@@ -563,8 +597,8 @@ public class MinimumCoverSolver implements Solver {
 		if(wap == -1) {
 			if(Main_Load.TESTING)
 				System.out.println("Couldn't split");
-			bruteForceCycleEnumerate(chunk);//try to clear up manually if we can
-			return;//couldn't split
+			splitEdge(chunk);
+			return;
 		}
 		if(Main_Load.TESTING) {
 //			System.out.println("Split at "+wap+" on: ");
@@ -611,9 +645,7 @@ public class MinimumCoverSolver implements Solver {
 //		System.out.println("Split into "+Arrays.toString(components));
 		
 		for(ArrayList<Integer> comp : components) {
-
 			int bigCycleListSizeBefore = bigCycleList.size();
-			
 			GraphChunk gc = new GraphChunk(chunk, comp, true);
 //			System.out.println("Subgraph is ");
 			processChunk(gc.gInner);
@@ -647,9 +679,10 @@ public class MinimumCoverSolver implements Solver {
 				fixChunksSince(bigCycleListSizeBefore, reduced.mapping);
 				return;
 			}
-			if(Main_Load.TESTING)
+			if(Main_Load.TESTING) {
 				System.out.println("Brute force not running on size "+g.N);
-//			g.dump();
+				g.dump();
+			}
 			return;
 		}
 		
@@ -699,6 +732,117 @@ public class MinimumCoverSolver implements Solver {
 		g.clear();
 	}
 	
+	//Slow but effective way to break down a big chunk.
+	//Look for an edge (u,v) such that removing u and v splits the graph into SCCs.
+	//Then you can look at just cycles in graphs A+{u,v} and B+{u,v}.
+	//There's probably a linear-time algorithm for this a-la WAP, but alas, I do not know it.
+	void splitEdge(Graph chunk_orig) {
+		int N = chunk_orig.N;
+		int[] compId = new int[N];
+		
+		boolean didSplit = false;
+		int splitU = -1, splitV = -1;
+		int numComps = -1;
+		
+		for(int u = 0; u<N; u++) {
+			for(int v : chunk_orig.eList[u]) {
+				//Make a version of the graph with this u and v gone
+				Graph chunk_minus = chunk_orig.copy();
+				chunk_minus.clearVertex(u);
+				chunk_minus.clearVertex(v);
+				
+				boolean[] visited = new boolean[N];
+				Arrays.fill(compId, 0);
+				Stack<Integer> queue = new Stack<Integer>();
+				numComps = 0;
+				int nextToVisit = 0;
+				//mark the two special
+				visited[u] = true;
+				visited[v] = true;
+				compId[u] = -1;
+				compId[v] = -1;
+				
+				while(queue.size() > 0 || nextToVisit < N) {
+					if(queue.size() == 0) {
+						if(visited[nextToVisit]) {
+							nextToVisit++;
+							continue;
+						}
+						numComps++;
+						queue.add(nextToVisit++);
+					}
+					int vis = queue.pop();
+					if(visited[vis])
+						continue;
+					compId[vis] = numComps-1;
+					visited[vis] = true;
+					queue.addAll(chunk_minus.eList[vis]);
+					queue.addAll(chunk_minus.backEList[vis]);
+				}
+				if(numComps > 1) {
+					if(Main_Load.TESTING)
+						System.out.println("Num comps = "+numComps+" for u="+u+", v="+v);
+					didSplit = true;
+					splitU = u;
+					splitV = v;
+					//save compId and numComps
+					break;
+				}
+			}
+			if(didSplit)
+				break;
+		}
+		
+		if(!didSplit) {
+			if(Main_Load.TESTING)
+				System.out.println("Couldn't splitEdge");
+			//try to clear up manually if we can
+			bruteForceCycleEnumerate(chunk_orig);
+			return;
+		}
+
+//		System.out.println(Arrays.toString(compId));
+//		chunk_orig.dump();
+		
+		@SuppressWarnings("unchecked")
+		ArrayList<Integer>[] components = new ArrayList[numComps];
+		for(int i=0; i<numComps; i++) {
+			components[i] = new ArrayList<Integer>();
+			components[i].add(splitU);
+			components[i].add(splitV);
+		}
+		for(int v=0; v<N; v++) {
+			if(v == splitU || v == splitV)
+				continue;
+			components[compId[v]].add(v);
+		}
+		if(Main_Load.TESTING) 
+			System.out.println("Split into "+Arrays.toString(components));
+		
+		for(ArrayList<Integer> comp : components) {
+			int bigCycleListSizeBefore = bigCycleList.size();
+			GraphChunk gc = new GraphChunk(chunk_orig, comp, true);
+//			System.out.println("Subgraph is ");
+			if(Main_Load.TESTING) {
+				System.out.println("splitEdge in on size "+gc.gInner.N);
+//				gc.gInner.dump();
+			}
+			processChunk(gc.gInner);
+			if(Main_Load.TESTING) {
+				System.out.println("splitEdge out");
+			}
+			fixChunksSince(bigCycleListSizeBefore, gc.mapping);
+			if(gc.gInner.E() != 0) {
+//				if(Main_Load.TESTING)
+//					System.out.println("Didn't complete");
+				gc.addInto(chunk_orig);
+				//TODO instead of adding chunks back in (and agglutinating over WAPs)
+				// keep them separate for other processing, maybe?
+			}
+		}
+//		throw new RuntimeException("splitEdge not ready");
+	}
+	
 	boolean isDVFS(Graph g_orig, int flags, int N) {
 		Graph g = g_orig.copy();
 		for(int i=0; i<N; i++) {
@@ -722,9 +866,9 @@ public class MinimumCoverSolver implements Solver {
 			if(outDeg > 1)
 				numWithOutdegOver1++;
 			if(inDeg == 0 && outDeg != 0)
-				throw new RuntimeException("What?");
+				throw new RuntimeException("What[1]? @ "+i);
 			if(inDeg != 0 && outDeg == 0)
-				throw new RuntimeException("What?");
+				throw new RuntimeException("What[2]? @ "+i);
 		}
 		if(numWithIndegOver1 == 1) {
 			int highdeg = -1;
