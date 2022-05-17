@@ -70,8 +70,17 @@ public class MinimumCoverChunks {
 	
 	public ArrayList<Integer> solve(MinimumCoverInfo mci) {
 		
-		if(Main_Load.TESTING)
+		if(Main_Load.TESTING) {
 			System.out.println("Solving with MinimumCoverChunks");
+//			for(int[] pair : mci.pairList)
+//				System.out.println(Arrays.toString(pair));
+//			for(int[] cyc : mci.bigCycleList)
+//				System.out.println(Arrays.toString(cyc));
+			for(GraphChunk chunk : mci.chunks) {
+				System.out.println(chunk.gInner.dumpS());
+				System.out.println(" mapped with "+Arrays.toString(chunk.mapping));
+			}
+		}
 		
 		this.N = mci.N;
 		

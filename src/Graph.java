@@ -73,10 +73,21 @@ public class Graph {
 	}
 	
 	void clearEdge(int v1, int v2) {
-		eList[v1].remove(v2);
+		boolean worked = eList[v1].remove(v2);
+		if(!worked)
+			throw new RuntimeException("Tried to clear edge "+v1+"->"+v2+" that wasn't in graph.");
 		backEList[v2].remove(v1);
 		outDeg[v1]--;
 		inDeg[v2]--;
+	}
+	
+	void addEdge(int v1, int v2) {
+		boolean worked = eList[v1].add(v2);
+		if(!worked)
+			throw new RuntimeException("Tried to add edge "+v1+"->"+v2+" that was already in graph.");
+		backEList[v2].add(v1);
+		outDeg[v1]++;
+		inDeg[v2]++;
 	}
 
 	@SuppressWarnings("unchecked")

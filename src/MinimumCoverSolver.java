@@ -17,7 +17,7 @@ public class MinimumCoverSolver implements Solver {
 	ArrayList<int[]> pairList;
 	ArrayList<int[]> bigCycleList;
 	
-	static final int BRUTE_LIMIT = 15;
+	static final int BRUTE_LIMIT = 22;
 	
 	public MinimumCoverSolver() {}
 
@@ -519,7 +519,8 @@ public class MinimumCoverSolver implements Solver {
 		SCC scc = new SCC();
 		boolean sccSplit = scc.doSCC(rg);
 		if(!sccSplit) {
-			System.out.println("No split");
+			if(Main_Load.TESTING)
+				System.out.println("No split");
 			//alright, it didn't split. Still make the "chunk" and process
 			GraphChunk chunk = GraphChunk.wrap(g.copy());
 			g.clear();
@@ -539,11 +540,12 @@ public class MinimumCoverSolver implements Solver {
 		for(ArrayList<Integer> sccComp : scc.sccInfo) {
 			int bigCycleListSizeBefore = bigCycleList.size();
 			GraphChunk chunk = new GraphChunk(g, sccComp, true);
+//			if(Main_Load.TESTING)
+//				System.out.println("processSCC in on "+Arrays.toString(chunk.mapping));
 			processChunk(chunk.gInner);
 			fixChunksSince(bigCycleListSizeBefore, chunk.mapping);
 			if(chunk.gInner.E() != 0) {
 //				chunk.addInto(g);
-//				chunk.gInner.dump();
 				res.add(chunk);
 			}
 		}
@@ -571,6 +573,7 @@ public class MinimumCoverSolver implements Solver {
 		
 //		g.dump();
 //		System.out.println("Chunky chunk "+Arrays.toString(chunk.mapping));
+		stripDegZero(g);
 		while((skipMergeLong(g) > 0) ||
 				(dropC3(g) > 0)) {
 			stripDegZero(g);
@@ -596,8 +599,11 @@ public class MinimumCoverSolver implements Solver {
 //			System.out.println("findAP = "+findAP);
 		if(wap == -1) {
 			if(Main_Load.TESTING)
-				System.out.println("Couldn't split");
+				System.out.println("Couldn't split with WAP, fall to splitEdge");
 			splitEdge(chunk);
+			if(Main_Load.TESTING && chunk.E() > 0) {
+				System.out.println("splitWAP didn't split AND splitEdge didn't solve");
+			}
 			return;
 		}
 		if(Main_Load.TESTING) {
@@ -647,7 +653,8 @@ public class MinimumCoverSolver implements Solver {
 		for(ArrayList<Integer> comp : components) {
 			int bigCycleListSizeBefore = bigCycleList.size();
 			GraphChunk gc = new GraphChunk(chunk, comp, true);
-//			System.out.println("Subgraph is ");
+			if(Main_Load.TESTING)
+				System.out.println("splitWAP in with mapping "+Arrays.toString(gc.mapping));
 			processChunk(gc.gInner);
 			fixChunksSince(bigCycleListSizeBefore, gc.mapping);
 			if(gc.gInner.E() != 0) {
@@ -660,8 +667,14 @@ public class MinimumCoverSolver implements Solver {
 		}
 //		System.out.println("After WAP is ");
 //		chunk.gInner.dump();
-		if(Main_Load.TESTING && chunk.E() == 0)
-			System.out.println("Splitting SOLVED this chunk");
+		if(Main_Load.TESTING) {
+			if(chunk.E() == 0) 
+				System.out.println("SplitWAP SOLVED this chunk");
+			else {
+				System.out.println("splitWAP split but didn't solve this chunk");
+				chunk.dump();
+			}
+		}
 	}
 	
 	//Idea here is that for small chunks (< 10 vertices?) we can find a
@@ -737,6 +750,11 @@ public class MinimumCoverSolver implements Solver {
 	//Then you can look at just cycles in graphs A+{u,v} and B+{u,v}.
 	//There's probably a linear-time algorithm for this a-la WAP, but alas, I do not know it.
 	void splitEdge(Graph chunk_orig) {
+//		if(true) {
+//			bruteForceCycleEnumerate(chunk_orig);
+//			return;
+//		}
+		
 		int N = chunk_orig.N;
 		int[] compId = new int[N];
 		
@@ -816,22 +834,41 @@ public class MinimumCoverSolver implements Solver {
 				continue;
 			components[compId[v]].add(v);
 		}
-		if(Main_Load.TESTING) 
-			System.out.println("Split into "+Arrays.toString(components));
+		if(Main_Load.TESTING) {
+			System.out.println("Split with "+splitU+"->"+splitV+" into "+Arrays.toString(components));
+		}
 		
+		//each chunk is taken destructively, and this removes the "shared" edge u->v.
+		//if we just take the chunks, that means only the first component would get the edge, instead of
+		//all of them. So before each chunk formation we need to add it in.
+		//This might be already there -- if we added it back with the gc.addInto() if 
+		//the relevant chunk failed to resolve.
+		//So we actually keep track of "did we always have to add it back in". If we ever
+		//didn't, then it should be in the final graph, so we make sure to add it at the end.
+		
+		//start without it.
+		chunk_orig.clearEdge(splitU, splitV);
+		
+		boolean alwaysNeededExtraEdge = true;
 		for(ArrayList<Integer> comp : components) {
-			int bigCycleListSizeBefore = bigCycleList.size();
+			//add the one extra edge to chunk_orig if it's missing
+			if(!chunk_orig.eList[splitU].contains(splitV)) {
+				chunk_orig.addEdge(splitU, splitV);
+			} else {
+				alwaysNeededExtraEdge = false;
+			}
 			GraphChunk gc = new GraphChunk(chunk_orig, comp, true);
 //			System.out.println("Subgraph is ");
 			if(Main_Load.TESTING) {
 				System.out.println("splitEdge in on size "+gc.gInner.N);
-//				gc.gInner.dump();
+				System.out.println("Mapping = "+Arrays.toString(gc.mapping));
 			}
+			int bigCycleListSizeBefore = bigCycleList.size();
 			processChunk(gc.gInner);
+			fixChunksSince(bigCycleListSizeBefore, gc.mapping);
 			if(Main_Load.TESTING) {
 				System.out.println("splitEdge out");
 			}
-			fixChunksSince(bigCycleListSizeBefore, gc.mapping);
 			if(gc.gInner.E() != 0) {
 //				if(Main_Load.TESTING)
 //					System.out.println("Didn't complete");
@@ -840,7 +877,10 @@ public class MinimumCoverSolver implements Solver {
 				// keep them separate for other processing, maybe?
 			}
 		}
-//		throw new RuntimeException("splitEdge not ready");
+		
+		if(!alwaysNeededExtraEdge) {
+			chunk_orig.addEdge(splitU, splitV);
+		}
 	}
 	
 	boolean isDVFS(Graph g_orig, int flags, int N) {

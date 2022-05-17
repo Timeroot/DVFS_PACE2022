@@ -1,3 +1,4 @@
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.stream.Collectors;
 
@@ -47,6 +48,19 @@ public class ExactSolver {
 //				new SCIPSolver()
 				new MinimumCoverSolver()
 				.solve(Graph.fromReducedGraph(rg_scc));
+		
+		{//verify
+			Graph check = Graph.fromReducedGraph(rg_scc);
+			for(int v : res)
+				check.clearVertex(v);
+			ArrayDeque<Integer> cyc = check.findCycleDFS();
+			if(cyc != null) {
+				//BAD SOLUTION!
+				System.out.println(cyc);
+				throw new RuntimeException("Didn't pass verifying!");
+			}
+		}
+		
 		res = rg_scc.transformSolution(res);
 		return res;
 	}
