@@ -2,9 +2,12 @@
 
 import java.util.ArrayList;
 
-//Reduce the graph to a collection of cycles? This stores the reduced form.
-//GraphChunks store the "remaining" graph.
-//Optionally also stores heuristic solution.
+//If you reduce the DVFS graph to a collection of cycles that you need to cover,
+//then this stores the reduced form. Also uses GraphChunks to store any remaining
+//graph that couldn't be nicely represented using cycles. The hope is that this
+//is relatively small.
+//
+//MinimumCoverInfo can optionally also store a heuristic solution to help the ILP.
 public class MinimumCoverInfo {
 
 	int N;

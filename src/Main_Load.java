@@ -17,6 +17,7 @@ public class Main_Load {
 	HashSet<Integer>[] backEList;
 	int[] inDeg, outDeg;
 	boolean sparseOnly = false;
+	Thread selfkiller;
 	
 	boolean[] candidateDVFS;
 	
@@ -24,11 +25,25 @@ public class Main_Load {
 	
 	static final boolean TESTING = false;
 	static final boolean VERBOSE = TESTING && false;
+	
+	//usually while testing we want to check all our outputs pass.
+	//but sometimes we've set some problems to deliberately skip.
+	//in this case, you can set this false, and the program won't complain
+	//when it fails to solve the problem.
+	static final boolean MUST_VERIFY = true;
+	
+	//Extra assertion checks to make sure everything's valid,
+	//but that slow things down significantly
+	static final boolean GRAPH_CHECK = false;//do regular checks that the graph data is valid
+	static final boolean VERIFY_DVFS = true;//verify the solution from MinimumCoverDescriptor is a DVFS
+
+	//Run heuristic or exact solver
 	static final boolean HEURISTIC = false;
 	
 	static final boolean KILL_SELF = false;
 	static final long MAX_TIME = (HEURISTIC?10:30)*60*1000;
 	static final long KILL_SELF_TIMEOUT = MAX_TIME;
+	
 	
 	static volatile boolean is_killed = false;
 	static long startT = -1;
@@ -38,6 +53,7 @@ public class Main_Load {
 		GraphChunk.biggestChunk = 0;
 		startT = System.currentTimeMillis();
 		
+		//parse in the input
 		int E = -1;
 		{
 			String line;
@@ -85,37 +101,41 @@ public class Main_Load {
 		
 		if(TESTING)
 			System.out.println("Loaded. N="+N+", E="+E);
-        
-		SignalHandler termHandler = new SignalHandler()
-        {
-            @Override
-            public void handle(Signal sig)
-            {
-            	if(VERBOSE)
-            		System.out.println("Early termination (1)");
-            	is_killed = true;
-            }
-        };
-        Signal.handle(new Signal("TERM"), termHandler);
-		
-		Thread selfkiller;
-		if(KILL_SELF) {
-			selfkiller = new Thread("Killer") {
-				public void run() {
-					try {
-						Thread.sleep(KILL_SELF_TIMEOUT);
-					} catch (InterruptedException e) {}
-					if(VERBOSE)
-            			System.out.println("Early termination (2)");
-					is_killed = true;					
-				}
-			};
-			selfkiller.start();
-		}
 		
         ArrayList<Integer> sol;
         
 		if(HEURISTIC) {
+			//in HEURISTIC mode, we need to be able to dump our current best
+			//solution as soon as we get a kill signal. This isn't relevant
+			//in the EXACT mode, as there we have no choice to keep running
+			//until we solve or we don't.
+			SignalHandler termHandler = new SignalHandler()
+	        {
+	            @Override
+	            public void handle(Signal sig)
+	            {
+	            	if(VERBOSE)
+	            		System.out.println("Early termination (1)");
+	            	is_killed = true;
+	            }
+	        };
+	        Signal.handle(new Signal("TERM"), termHandler);
+			
+	        //We can add our own kill-timeout if we want
+			if(KILL_SELF) {
+				selfkiller = new Thread("Killer") {
+					public void run() {
+						try {
+							Thread.sleep(KILL_SELF_TIMEOUT);
+						} catch (InterruptedException e) {}
+						if(VERBOSE)
+	            			System.out.println("Early termination (2)");
+						is_killed = true;					
+					}
+				};
+				selfkiller.start();
+			}
+			
 //			Graph g = new Graph(N, eList, backEList, inDeg, outDeg);
 //			PruneLowdeg prune = new PruneLowdeg(g);
 //			System.out.println("Initial prune: N="+g.N);
@@ -127,7 +147,7 @@ public class Main_Load {
 
 			ReducedGraph rg = new ReducedGraph(N, eList, backEList, inDeg, outDeg);
 
-			sol = new GreedySolver().solve(rg);
+			sol = new Heuristic_DVFS_Aggressive().solve(rg);
 		
 		} else { //EXACT
 			
@@ -157,10 +177,12 @@ public class Main_Load {
 		}
 	}
 
-	static double scoreProduct = 1.0;
-	static final double SCORE_PROD_SHIFT = 1000; //divide by this each time, then multiply back in the end. Avoids overflow
+	//heuristic solver overall score is the product of all the scores.
+	//Well, the geometric mean, but same thing. If we just track the product,
+	//though, we get overflow, so we track the log.
+	static double scoreLogProduct = 1.0;
 	void save(PrintStream fileout, ArrayList<Integer> sol) throws FileNotFoundException {
-		scoreProduct *= sol.size() / SCORE_PROD_SHIFT;
+		scoreLogProduct *= Math.log(sol.size());
 		for(Integer i : sol)
 			fileout.println(1+i);
 		fileout.close();
@@ -188,18 +210,22 @@ public class Main_Load {
 			main_submit(args);
 	}
 
+	//Main method for submissions to PACE
+	//reads stdin, write answer to stdout
 	public static void main_submit(String[] args) throws IOException {
-
 		BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
 		PrintStream fileout = new PrintStream(System.out);
 		
 		new Main_Load(reader, fileout);
 	}
 	
+	//Main method for development and debugging.
+	//reads problems from files, writes to files, in a loop across many problems
 	public static void main_test(String[] args) throws IOException {
-//		write_settings();
 		long startT = System.currentTimeMillis();
-		String prefix = HEURISTIC ? "./heuristic_public/h_" : "./exact_public/e_";
+		String prefix =
+				HEURISTIC ? "./heuristic_public/h_" : "./exact_public/e_" ;
+		
 		int done=0;
 		//#37 tricky, #73 requires new cycle. --outdated, for callback solver
 		//#85 is killer, #87 is killer. Both VC problems.
@@ -210,7 +236,10 @@ public class Main_Load {
 		//#103, #109, #111: hard VC problems.
 		//#105 has a large chunk of size 744. #107 has sizes 55, 37, 45, 32, 70...
 		//#141 gave MLE, is MIS problem
-		for(int i=89; i<=89; i+=2) {
+		//----okay wipe that----
+		//#115 is VC+67 small cycles, but pretttty hard.
+		//addressed with the stuff in CycleCoverReductions.
+		for(int i=123; i<=123; i+=2) {
 //			if(i==107) {
 //				System.out.println("SKIP "+i);
 //				continue;
@@ -224,56 +253,43 @@ public class Main_Load {
 			BufferedReader reader = new BufferedReader(new FileReader(inName));
 			PrintStream fileout = new PrintStream(new FileOutputStream(outName));
 			
-//			Thread selfkiller;
-//			if(KILL_SELF) {
-//				selfkiller = new Thread("Killer") {
-//					public void run() {
-//						try {
-//							Thread.sleep(KILL_SELF_TIMEOUT);
-//						} catch (InterruptedException e) {}
-//						Signal.raise(new Signal("TERM"));						
-//					}
-//				};
-//				selfkiller.start();
-//			}
-			
 			Main_Load ml = new Main_Load(reader, fileout);
-			
-//			if(KILL_SELF) {
-//				selfkiller.stop();
-//				is_killed = false;
-//			}
 			
 			if(ml.foundSol) {
 				verify(inName, outName);
 			} else {
 				System.out.println("Didn't verify because no solution found");
-				throw new RuntimeException();
+				if(MUST_VERIFY)
+					throw new RuntimeException();
 			}
 			done++;
 			System.out.println("Took "+(System.currentTimeMillis()-t0)*0.001+"sec");
 			System.out.println();
 		}
 		long totalTime = System.currentTimeMillis() - startT; 
-//		write_settings();
+		
+		if(TESTING && HEURISTIC)
+			write_heuristic_settings();
 		if(HEURISTIC)
-			System.out.println("Geometric mean score: "+SCORE_PROD_SHIFT*Math.pow(scoreProduct, 1.0/done));
+			System.out.println("Geometric mean score: "+Math.exp(scoreLogProduct/done));
+		
 		System.out.println("Avg time: "+(totalTime/done)*0.001+"sec");
 	}
 	
-	public static void write_settings() {
-		System.out.println("CLEANUP_AFTER = "+GreedySolver.CLEANUP_AFTER);
-		System.out.println("CLEAN_WHEN_KILLED = "+GreedySolver.CLEAN_WHEN_KILLED);
-		System.out.println("CLEANUP_DIRECTION_FWD = "+GreedySolver.CLEANUP_DIRECTION_FWD);
-		System.out.println("USE_SCC = "+GreedySolver.USE_SCC);
+	//Dump a bunch of the configurations for heuristic solving
+	public static void write_heuristic_settings() {
+		System.out.println("CLEANUP_AFTER = "+Heuristic_DVFS_Aggressive.CLEANUP_AFTER);
+		System.out.println("CLEAN_WHEN_KILLED = "+Heuristic_DVFS_Aggressive.CLEAN_WHEN_KILLED);
+		System.out.println("CLEANUP_DIRECTION_FWD = "+Heuristic_DVFS_Aggressive.CLEANUP_DIRECTION_FWD);
+		System.out.println("USE_SCC = "+Heuristic_DVFS_Aggressive.USE_SCC);
 		System.out.println();
-		System.out.println("START_ARTICULATION_CHECK = "+GreedySolver.START_ARTICULATION_CHECK);
-		System.out.println("ARTICULATION_CHECK_FREQ = "+GreedySolver.ARTICULATION_CHECK_FREQ);
-		System.out.println("ARTICULATION_MIN_N = "+GreedySolver.ARTICULATION_MIN_N);
+		System.out.println("START_ARTICULATION_CHECK = "+Heuristic_DVFS_Aggressive.START_ARTICULATION_CHECK);
+		System.out.println("ARTICULATION_CHECK_FREQ = "+Heuristic_DVFS_Aggressive.ARTICULATION_CHECK_FREQ);
+		System.out.println("ARTICULATION_MIN_N = "+Heuristic_DVFS_Aggressive.ARTICULATION_MIN_N);
 		System.out.println();
-		System.out.println("FAST_SINKHORN_MARGIN = "+GreedySolver.FAST_SINKHORN_MARGIN);
-		System.out.println("DEGREE_HEURISTIC_SWITCH = "+GreedySolver.DEGREE_HEURISTIC_SWITCH);
-		System.out.println("CLEANUP_MARGIN = "+GreedySolver.CLEANUP_MARGIN);
+		System.out.println("FAST_SINKHORN_MARGIN = "+Heuristic_DVFS_Aggressive.FAST_SINKHORN_MARGIN);
+		System.out.println("DEGREE_HEURISTIC_SWITCH = "+Heuristic_DVFS_Aggressive.DEGREE_HEURISTIC_SWITCH);
+		System.out.println("CLEANUP_MARGIN = "+Heuristic_DVFS_Aggressive.CLEANUP_MARGIN);
 		System.out.println();
 		System.out.println("KILL_SELF = "+KILL_SELF);
 		System.out.println("HEURISTIC MODE? "+HEURISTIC);
@@ -281,6 +297,7 @@ public class Main_Load {
 		System.out.println();
 	}
 	
+	//How many milliseconds left before we have to return our answer?
 	public static long msRemaining() { 
 		long elapsed = System.currentTimeMillis() - startT;
 		if(HEURISTIC)

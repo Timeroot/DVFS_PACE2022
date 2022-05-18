@@ -1,4 +1,5 @@
 import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
 
@@ -8,7 +9,7 @@ public class Graph {
 	HashSet<Integer>[] backEList;
 	int[] inDeg, outDeg;
 	
-	static final boolean CHECK = true;
+	static final boolean CHECK = Main_Load.GRAPH_CHECK;
 	
 	public Graph(int N_, HashSet<Integer>[] eList_, HashSet<Integer>[] backEList_,
 			int[] inDeg_, int[] outDeg_) {
@@ -105,15 +106,80 @@ public class Graph {
 		HashSet<Integer>[] newBackEList = cloneList(backEList);
 		return new Graph(N, newEList, newBackEList, Arrays.copyOf(inDeg,N), Arrays.copyOf(outDeg,N));
 	}
+	
+	static final boolean CHORD_MINIMIZE = true;
+	static final boolean VERBOSE_CHORDING = false;
+	static long chordTime = 0; 
 
+	@SuppressWarnings("unused")
 	private boolean findCycleHelper(int i, boolean[] visited, boolean[] inPath, ArrayDeque<Integer> path) {
 
 		if (inPath[i]) {
 			// made it back to "i" which we visited previously.
 			// to get a cycle, trim off the stuff leading up to i.
-			while (path.peek() != i)
+			while (path.peekFirst() != i)
 				path.pollFirst();
-			return true;
+			
+			if(!CHORD_MINIMIZE)
+				return true;
+			
+			
+			if(path.size() > 3) {
+				if(Main_Load.TESTING && VERBOSE_CHORDING) {
+					chordTime -= System.currentTimeMillis();
+					System.out.println("Cycle is "+path);
+				}
+				
+				HashSet<Integer> hsCycle = new HashSet<>(path);
+				
+				ArrayList<Integer> alCycle = new ArrayList<>();
+				for(int v : path)
+					alCycle.add(v);
+				
+				int N = alCycle.size();
+				kLoop: for(int k=0; k<N; k++) {
+					int vk = alCycle.get(k);
+					for(int vkN : eList[vk]) {
+						if(vkN == alCycle.get((k+1)%N))
+							continue;
+						if(hsCycle.contains(vkN)) {
+							if(Main_Load.TESTING && VERBOSE_CHORDING)
+								System.out.println("Chord found "+vk+" -> "+vkN);
+							
+							while(path.peekFirst() != vkN)
+								path.addLast(path.pollFirst());//rotate vkN to front
+							while(path.peekLast() != vk)
+								path.pollLast();
+							
+							if(Main_Load.TESTING && VERBOSE_CHORDING)
+								System.out.println("Reduced path is "+path);
+							
+							//continue loop
+							hsCycle.clear();
+							hsCycle.addAll(path);
+							
+							alCycle.clear();
+							for(int v : path)
+								alCycle.add(v);
+							
+							N = alCycle.size();
+							k=0;
+							continue kLoop;
+						}
+					}
+				}
+
+				if(Main_Load.TESTING && VERBOSE_CHORDING) {
+					chordTime += System.currentTimeMillis();
+					System.out.println("Done, chordTime = "+(chordTime*0.001)+"s");
+				}
+				
+				return true;
+			} else {
+				if(Main_Load.TESTING && VERBOSE_CHORDING)
+					System.out.println("Path is size 3");
+				return true;
+			}
 		}
 
 		if (visited[i])
@@ -200,7 +266,7 @@ public class Graph {
 		res += "{";
 		boolean firstRow = true;
 		for(int i=0; i<N; i++) {
-			if(inDeg[i] ==0 && outDeg[i] == 0)
+			if(outDeg[i] == 0)
 				continue;
 			if(!firstRow) {
 				res += ",";

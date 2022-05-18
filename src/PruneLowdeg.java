@@ -248,9 +248,4 @@ public class PruneLowdeg {
 				reducedSol.add(i);
 	}
 	
-	ArrayList<Integer> solve(Solver s) {
-		ArrayList<Integer> reducedSol = s.solve(g);
-		transformSolution(reducedSol);
-		return reducedSol;
-	}
 }

@@ -3,8 +3,15 @@ import java.util.ArrayList;
 import java.util.stream.Collectors;
 
 public class ExactSolver {
-	static final boolean USE_SCC = false;
+	static final boolean USE_SCC = true;
 	
+	//First steps to exact solving: split into strongly connected components,
+	//and then prune using reduction rules for DVFS (vertices with indeg<=1 or outdeg<=1),
+	//The pruning can't break the SCC any more.
+	//
+	// solve() does a prune and splits into SCC, and then passes the (one or more) components to solveSCC().
+	// solveSCC() then handles the minimized directed graph using MinimumCoverDescriptor,
+	// which solves the rest. (See that file)
 	public static ArrayList<Integer> solve(Graph g_orig) {
 		ReducedGraph rg = ReducedGraph.wrap(g_orig, true);//ReducedGraph.fromGraph(g_orig);
 		rg.prune();
@@ -36,20 +43,16 @@ public class ExactSolver {
 	}
 	
 	public static ArrayList<Integer> solveSCC(ReducedGraph rg_scc, boolean reprune) {
-//		if(reprune)
-//			rg_scc.prune();
+		if(reprune)
+			rg_scc.prune();
 		if(Main_Load.TESTING) 
 			System.out.println("SCC: V="+rg_scc.real_N()+", E="+rg_scc.E());
 //		System.out.println("Heuristic primal: "+ExactSolver_Heuristic.solve(rg_scc).size());
 
-		ArrayList<Integer> res =
-//				new JNASCIPSolver()
-//				new JNASCIPSolver_Reopt()
-//				new SCIPSolver()
-				new MinimumCoverSolver()
-				.solve(Graph.fromReducedGraph(rg_scc));
+		MinimumCoverDescriptor solver = new MinimumCoverDescriptor();
+		ArrayList<Integer> res = solver.solve(Graph.fromReducedGraph(rg_scc));
 		
-		{//verify
+		if(Main_Load.VERIFY_DVFS){//verify
 			Graph check = Graph.fromReducedGraph(rg_scc);
 			for(int v : res)
 				check.clearVertex(v);

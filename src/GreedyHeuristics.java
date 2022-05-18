@@ -1,5 +1,7 @@
 import java.util.Arrays;
 
+//Different heuristic vertex-selection methods for
+//greedy search. Each implemented as static methods.
 public class GreedyHeuristics {
 
 	//Choose based on highest degree-product vertex

@@ -9,15 +9,12 @@ public class WeakArticulationPoints {
 	//returns the new "time"
 	static int APUtil(Graph g, int u, boolean visited[], int disc[], int low[], int time, int parent,
 			boolean isAP[]) {
-		// Count of children in DFS Tree
+		
 		int children = 0;
-
 		// Mark the current node as visited
 		visited[u] = true;
-
 		// Initialize discovery time and low value
 		disc[u] = low[u] = ++time;
-
 		// Go through all vertices adjacent to this
 		for (int dir=0; dir<2; dir++) {
 			//gotta go forward and back edges
@@ -27,23 +24,19 @@ public class WeakArticulationPoints {
 				if (!visited[v]) {
 					children++;
 					time = APUtil(g, v, visited, disc, low, time, u, isAP);
-	
 					// Check if the subtree rooted with v has
 					// a connection to one of the ancestors of u
 					low[u] = Math.min(low[u], low[v]);
-	
 					// If u is not root and low value of one of
 					// its child is more than discovery value of u.
 					if (parent != -1 && low[v] >= disc[u])
 						isAP[u] = true;
 				}
-	
 				// Update low value of u for parent function calls.
 				else if (v != parent)
 					low[u] = Math.min(low[u], disc[v]);
 			}
 		}
-
 		// If u is root of DFS tree and has two or more children.
 		if (parent == -1 && children > 1)
 			isAP[u] = true;
@@ -78,13 +71,10 @@ public class WeakArticulationPoints {
 	static int APUtil_One(Graph g, int u, boolean visited[], int disc[], int low[], int time, int parent) {
 		// Count of children in DFS Tree
 		int children = 0;
-
 		// Mark the current node as visited
 		visited[u] = true;
-
 		// Initialize discovery time and low value
 		disc[u] = low[u] = ++time;
-
 		// Go through all vertices adjacent to this
 		for (int dir=0; dir<2; dir++) {
 			//gotta go forward and back edges
@@ -96,24 +86,20 @@ public class WeakArticulationPoints {
 					time = APUtil_One(g, v, visited, disc, low, time, u);
 					if(time < 0)
 						return time;//found a WAP, bubble
-	
 					// Check if the subtree rooted with v has
 					// a connection to one of the ancestors of u
 					low[u] = Math.min(low[u], low[v]);
-	
 					// If u is not root and low value of one of
 					// its child is more than discovery value of u.
 					if (parent != -1 && low[v] >= disc[u]) {
 						return -(1+u);
 					}
 				}
-	
 				// Update low value of u for parent function calls.
 				else if (v != parent)
 					low[u] = Math.min(low[u], disc[v]);
 			}
 		}
-
 		// If u is root of DFS tree and has two or more children.
 		if (parent == -1 && children > 1) {
 			return -(1+u);
@@ -138,16 +124,10 @@ public class WeakArticulationPoints {
 			if (!visited[u]) {
 				int res = APUtil_One(g, u, visited, disc, low, 0, par);
 				if(res < 0) {
-//					System.out.println("WAP Success");
-//					System.out.println("Disc = "+Arrays.toString(disc));
-//					System.out.println("Low = "+Arrays.toString(low));
 					return -res-1;
 				}
 			}
 		
-//		System.out.println("WAP Failure");
-//		System.out.println("Disc = "+Arrays.toString(disc));
-//		System.out.println("Low = "+Arrays.toString(low));
 		return -1;
 	}
 }

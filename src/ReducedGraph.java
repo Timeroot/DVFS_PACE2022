@@ -19,7 +19,7 @@ public class ReducedGraph {
 	int dropped_Size = 0;
 	ArrayList<Integer> mustFVS;
 	
-	static final boolean CHECK = false;
+	static final boolean CHECK = Main_Load.GRAPH_CHECK;
 	
 	public ReducedGraph(int N_, HashSet<Integer>[] eList_, HashSet<Integer>[] backEList_,
 			int[] inDeg_, int[] outDeg_) {
@@ -260,14 +260,13 @@ public class ReducedGraph {
         return false;
     }
 	
-	//Force a vertex to be in DFVS by adding self-loop
-	void addSelfLoop(int v0) {
-		if(dropped[v0])
-			throw new RuntimeException("Can't add a self-loop to a dropped vertex");
-		eList[v0].add(v0);
-		backEList[v0].add(v0);
-		inDeg[v0]++;
-		outDeg[v0]++;
+	void addEdge(int v1, int v2) {
+		boolean worked = eList[v1].add(v2);
+		if(!worked)
+			throw new RuntimeException("Tried to add edge "+v1+"->"+v2+" that was already in graph.");
+		backEList[v2].add(v1);
+		outDeg[v1]++;
+		inDeg[v2]++;
 	}
 	
 	//Force a vertex to *not* be in DFVS but contracting its edges through, and dropping it
