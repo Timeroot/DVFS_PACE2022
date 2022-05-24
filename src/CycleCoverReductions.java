@@ -2,6 +2,9 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.TreeSet;
 
 //This is similar to VertexCoverReductions, but is build to handle bigger cycles too.
@@ -18,8 +21,8 @@ public class CycleCoverReductions {
 	static int N;
 	static ArrayList<Integer>[] neighbors;
 	
-	static boolean[] inBigCyc;
-	static ArrayList<int[]> bigCycList;
+	static int[] inBigCyc;
+	static LinkedList<int[]> bigCycList;
 	
 	//this data saves things needed to save the reduction.
 	//degree 2 foldings. For a deg-2 pattern a-b-c, this stores {0, b,a,c}.
@@ -31,7 +34,7 @@ public class CycleCoverReductions {
 	static int lastIncludesUpdate;
 	
 	static final boolean CHECK_TWINS = false;
-	static final boolean LOG = false;
+	static final boolean LOG = true && Main_Load.TESTING;
 	
 	//check that it works, in case you're afraid of bugs
 	static final boolean VERIFY = true;
@@ -40,11 +43,11 @@ public class CycleCoverReductions {
 	static final boolean CLONE_BIG_CYC = true;
 	
 	@SuppressWarnings("unchecked")
-	public static ArrayList<Integer> solve(ArrayList<int[]> _edges, ArrayList<int[]> _bigCyc, int _N) {
+	public static ArrayList<Integer> solve(ArrayList<int[]> _edges, LinkedList<int[]> _bigCyc, int _N) {
 		//store big cycle list
 		bigCycList = _bigCyc;
 		if(CLONE_BIG_CYC) {
-			bigCycList = new ArrayList<>();
+			bigCycList = new LinkedList<>();
 			for(int[] cyc : _bigCyc)
 				bigCycList.add(cyc.clone());
 		}
@@ -71,7 +74,7 @@ public class CycleCoverReductions {
 		markIsInBigCyc();
 		
 		if(Main_Load.TESTING){
-			System.out.println("Initial VertexCover problem: N = "+N);
+			System.out.println("Initial CycleCover problem: N = "+N);
 			System.out.println(numNonz()+" nonempty vertices");
 		}
 		
@@ -82,11 +85,12 @@ public class CycleCoverReductions {
 			for(int v=0; v<N; v++) {
 				int deg = neighbors[v].size();
 				//deg 0 --> it's not even there
-				if(deg == 0)
+				if(deg == 0) {
 					continue;
+				}
 				//prune degree 1
 				if(deg == 1) {
-					if(inBigCyc[v])//TODO if the neighbor is in the same cycles
+					if(inBigCyc[v] > 0)//TODO if the neighbor is in the same cycles
 						continue;
 					
 					int other = neighbors[v].get(0);
@@ -102,7 +106,7 @@ public class CycleCoverReductions {
 				}
 				//prune degree 2
 				if(deg == 2) {
-					if(inBigCyc[v])//TODO if the neighbor is in the same cycles
+					if(inBigCyc[v] > 0)//TODO if the neighbor is in the same cycles
 						continue;
 					
 					int oA = neighbors[v].get(0);
@@ -126,7 +130,7 @@ public class CycleCoverReductions {
 						continue;
 					} else {
 						//fold
-						if(inBigCyc[oA] || inBigCyc[oB])//TODO if they have big cycles
+						if(inBigCyc[oA] > 0 || inBigCyc[oB] > 0)//TODO if they have big cycles
 							continue;
 						
 						//remove v from both
@@ -157,7 +161,7 @@ public class CycleCoverReductions {
 					}
 				}
 				//check for simplicial. If the neighborhood is a clique, delete v
-				if(!inBigCyc[v]) {
+				if(inBigCyc[v] == 0) {
 					boolean isSimplicial = true;
 					ArrayList<Integer> Nv = neighbors[v];
 					for(int n1 : Nv) {
@@ -203,7 +207,7 @@ public class CycleCoverReductions {
 						if(deg2 >= deg)//n1 can't be dominated by v if it has at least many other neighbors
 							continue;
 						
-						if(inBigCyc[n1])
+						if(inBigCyc[n1] > 0)
 							continue;//TODO handle when v dominates n1 by having all the cycles n1 does
 							
 						boolean n1_isDominated = true;
@@ -229,19 +233,17 @@ public class CycleCoverReductions {
 						continue;
 					}
 				}
-				
 				//check for 3-funnel
-				//TODO k-funnels, desks?
 				{
 					if(deg == 3) {
-						if(inBigCyc[v])//TODO if v is in big cycle
+						if(inBigCyc[v] > 0)//TODO if v is in big cycle
 							continue;
 						
 						int oA = neighbors[v].get(0);
 						int oB = neighbors[v].get(1);
 						int oC = neighbors[v].get(2);
 						
-						if(inBigCyc[oA] || inBigCyc[oB] || inBigCyc[oC])//TODO if they have big cycles
+						if(inBigCyc[oA] > 0 || inBigCyc[oB] > 0 || inBigCyc[oC] > 0)//TODO if they have big cycles
 							continue;
 						
 						int u = -1;
@@ -303,7 +305,55 @@ public class CycleCoverReductions {
 				}
 			}
 			if(LOG) System.out.println("End pass");
-			shrinkCyclesNewIncludes();
+			
+			//Now we can look for anything of degree zero that can be dropped / included
+			boolean newIncludes;
+			do {
+				shrinkCyclesNewIncludes();
+				newIncludes = false;
+				for(int v=0; v<N; v++) {
+					int deg = neighbors[v].size();
+					if(deg == 0) {
+						if(inBigCyc[v] == 1){//can exclude it
+							int[] newCyc = null;
+							for(Iterator<int[]> iter = bigCycList.iterator();
+									iter.hasNext();) {
+								int[] cyc = iter.next();
+								boolean has = false;
+								for(int a : cyc) {
+									if(a == v) {
+										has = true; break; 
+									}
+								}
+								if(!has)
+									continue;
+								//found it.
+								if(LOG) System.out.println("Found isolated cycle "+Arrays.toString(cyc)+", v="+v);
+								if(cyc.length == 1) {
+									//include it
+									newIncludes = true;
+									includes.add(v);
+									break;
+								} else {
+									//strip it
+									newCyc = new int[cyc.length-1];
+									int dest = 0;
+									for(int a : cyc) {
+										if(a != v)
+											newCyc[dest++] = a;
+									}
+									iter.remove();
+									break;
+								}
+							}
+							if(newCyc != null) {
+								bigCycList.add(newCyc);
+							}
+						}
+						continue;
+					}
+				}
+			}while(newIncludes);
 		}
 		
 		//Check for twins
@@ -380,11 +430,11 @@ public class CycleCoverReductions {
 //		return null;
 	}
 	
-	static void verify(boolean[] solution, ArrayList<int[]> edgeList, ArrayList<int[]> bigCycList) {
+	static void verify(boolean[] solution, ArrayList<int[]> edgeList, LinkedList<int[]> bigCycList) {
 		if(!VERIFY)
 			return;
 		
-		for(ArrayList<int[]> edgeType : new ArrayList[] {edgeList, bigCycList}) {
+		for(List<int[]> edgeType : new List[] {edgeList, bigCycList}) {
 		edgeLoop: for(int[] edge : edgeType) {;
 			for(int v : edge)
 				if(solution[v])
@@ -417,10 +467,10 @@ public class CycleCoverReductions {
 			System.out.println("New includes are "+Arrays.toString(newIncludes));
 		
 		boolean changed = false;
-		
-		for(int cycI=0; cycI<bigCycList.size(); cycI++) {
+		for(Iterator<int[]> iter = bigCycList.iterator();
+				iter.hasNext();) {
+			int[] cyc = iter.next();
 			boolean satted = false;
-			int[] cyc = bigCycList.get(cycI);
 			vLoop: for(int v : cyc) {
 				if(Arrays.binarySearch(newIncludes, v) >= 0) {//in there
 					satted = true;
@@ -429,10 +479,9 @@ public class CycleCoverReductions {
 			}
 			if(satted) {
 				//remove from bigCycList
-				bigCycList.remove(cycI);
+				iter.remove();
 				if(LOG)
 					System.out.println("Dropped cycle "+Arrays.toString(cyc));
-				cycI--;//since we offset
 				changed = true;
 			}
 		}
@@ -444,10 +493,10 @@ public class CycleCoverReductions {
 	}
 	
 	static void markIsInBigCyc() {
-		inBigCyc = new boolean[N];
+		inBigCyc = new int[N];
 		for(int[] bigCyc : bigCycList) {
 			for(int v : bigCyc) {
-				inBigCyc[v] = true;
+				inBigCyc[v]++;
 			}
 		}
 	}
@@ -474,7 +523,7 @@ public class CycleCoverReductions {
 	static boolean[] solveCore() {
 		if(numNonz() > 0) {
 			ArrayList<int[]> pairList = makeK2List();
-			MinimumCoverInfo mci = new MinimumCoverInfo(N, pairList, bigCycList, null, null);
+			MinimumCoverInfo mci = new MinimumCoverInfo(N, pairList, new ArrayList<>(bigCycList), null, null);
 			boolean[] res = new ILP_MinimumCover().solve(mci);
 			return res;
 //			throw new RuntimeException("We don't actually solve the core yet");

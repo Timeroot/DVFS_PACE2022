@@ -23,19 +23,19 @@ public class Main_Load {
 	
 	boolean foundSol = false;
 	
-	static final boolean TESTING = true;
-	static final boolean VERBOSE = TESTING && false;
+	static final boolean TESTING = false;
+	static final boolean VERBOSE = false && TESTING;
 	
 	//usually while testing we want to check all our outputs pass.
 	//but sometimes we've set some problems to deliberately skip.
 	//in this case, you can set this false, and the program won't complain
 	//when it fails to solve the problem.
-	static final boolean MUST_VERIFY = false;
+	static final boolean MUST_VERIFY = true;
 	
 	//Extra assertion checks to make sure everything's valid,
 	//but that slow things down significantly
 	static final boolean GRAPH_CHECK = false;//do regular checks that the graph data is valid
-	static final boolean VERIFY_DVFS = true;//verify the solution from MinimumCoverDescriptor is a DVFS
+	static final boolean VERIFY_DVFS = false;//verify the solution from MinimumCoverDescriptor is a DVFS
 
 	//Run heuristic or exact solver
 	static final boolean HEURISTIC = false;
@@ -43,7 +43,6 @@ public class Main_Load {
 	static final boolean KILL_SELF = false;
 	static final long MAX_TIME = (HEURISTIC?10:30)*60*1000;
 	static final long KILL_SELF_TIMEOUT = MAX_TIME;
-	
 	
 	static volatile boolean is_killed = false;
 	static long startT = -1;
@@ -223,23 +222,16 @@ public class Main_Load {
 	//reads problems from files, writes to files, in a loop across many problems
 	public static void main_test(String[] args) throws IOException {
 		long startT = System.currentTimeMillis();
+		int maxTi = -1;
+		long maxT = -1;
 		String prefix =
 				HEURISTIC ? "./heuristic_public/h_" : "./exact_public/e_" ;
 		
 		int done=0;
-		//#37 tricky, #73 requires new cycle. --outdated, for callback solver
-		//#85 is killer, #87 is killer. Both VC problems.
-		//#89 has a big component (size 26) but is easy if you wait. Can be resolved
-		//by implementing component edge-splitting, then it'll be very fast.
-		//#93 is hard but feasible. (~500s) --outdated, easy now
-		//#101 had a funny "big chunk" glitch but now only takes ~115s.
-		//#103, #109, #111: hard VC problems.
-		//#105 has a large chunk of size 744. #107 has sizes 55, 37, 45, 32, 70...
-		//#141 gave MLE, is MIS problem
-		//----okay wipe that----
-		//#115 is VC+67 small cycles, but pretttty hard.
-		//addressed with the stuff in CycleCoverReductions.
-		for(int i=1; i<=111; i+=2) {
+		//#105 has a large chunk of size 744.
+		//#121 has a large chunk of size 525.
+		//#111, #113 are slow VC problems (136sec, 532sec)
+		for(int i=13; i<=79; i+=2) {
 			long t0 = System.currentTimeMillis();
 			
 			String problem = prefix+"000".substring(Integer.toString(i).length())+i;
@@ -265,8 +257,13 @@ public class Main_Load {
 					throw new RuntimeException();
 			}
 			done++;
-			System.out.println("Took "+(System.currentTimeMillis()-t0)*0.001+"sec");
+			long thisT = System.currentTimeMillis()-t0;
+			System.out.println("Took "+thisT*0.001+"sec");
 			System.out.println();
+			if(thisT > maxT) {
+				maxTi = i;
+				maxT = thisT;
+			}
 		}
 		long totalTime = System.currentTimeMillis() - startT; 
 		
@@ -276,6 +273,7 @@ public class Main_Load {
 			System.out.println("Geometric mean score: "+Math.exp(scoreLogProduct/done));
 		
 		System.out.println("Avg time: "+(totalTime/done)*0.001+"sec");
+		System.out.println("Max time: "+maxT*0.001+"sec, problem "+maxTi);
 	}
 	
 	//Dump a bunch of the configurations for heuristic solving

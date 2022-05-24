@@ -20,19 +20,15 @@ public class VertexCoverReductions {
 	static ArrayList<Integer> includes;//forced inclusions from e.g. domination, deg-1..
 	
 	static final boolean CHECK_KFUNNEL = true;
-	static final boolean CHECK_TWINS = false;
+	static final boolean CHECK_TWINS = false;//only partially implemented
 	static final boolean CHECK_CONFINE = true;
 	static final boolean CHECK_DESKS = true;
-	static final boolean CHECK_GEN_DESKS = false;
+	static final boolean CHECK_GEN_DESKS = false;//not implemented
 	static final boolean VERIFY = true;
-	static final boolean LOG = true;
-	
-	static boolean used_desk;
+	static final boolean LOG = false && Main_Load.TESTING;
 	
 	@SuppressWarnings("unchecked")
 	public static ArrayList<Integer> solve(ArrayList<int[]> _edges, int _N) {
-		used_desk = false;
-		
 		//reduction data for rebuilding solution
 		deg2Folds_and_funnels = new ArrayList<int[]>();
 		includes = new ArrayList<>();
@@ -58,7 +54,7 @@ public class VertexCoverReductions {
 		while(progress) {
 			checkConsistency();
 			progress = false;
-			for(int v=0; v<N; v++) {
+			vLoop: for(int v=0; v<N; v++) {
 				int deg = neighbors[v].size();
 				//deg 0 --> it's not even there
 				if(deg == 0)
@@ -244,7 +240,6 @@ public class VertexCoverReductions {
 			
 			if(LOG) System.out.println("End pass");
 		}
-		System.out.println("Out");
 		
 		if(Main_Load.TESTING){
 			System.out.println(numNonz()+" nonempty vertices in reduced VC");
@@ -252,11 +247,6 @@ public class VertexCoverReductions {
 //				dump();
 //				System.out.println("FLAGFLAG");
 //			}
-		}
-		
-		if(CHECK_DESKS && !used_desk && Main_Load.TESTING) {
-			System.out.println("Didn't use desk. Skipping");
-			return null;
 		}
 		
 		boolean[] solution = solveCore();
@@ -629,7 +619,6 @@ public class VertexCoverReductions {
 						if(LOG) System.out.println("Desk! nnz="+numNonz()+", "+Arrays.toString(deskData));
 						
 						progress = true;
-						used_desk = true;
 						continue vLoop;
 					}
 				}
@@ -642,8 +631,6 @@ public class VertexCoverReductions {
 	private static boolean checkGenDesks() {
 		if(!CHECK_GEN_DESKS)
 			return false;
-		
-		//desk is a chordless 4-cycle of degree-3 or degree-4 vertices
 		boolean progress = false;
 		vLoop: for(int a=0; a<N; a++) {
 			int degA = neighbors[a].size();
@@ -656,14 +643,14 @@ public class VertexCoverReductions {
 				if(b <= a)
 					continue;//can order better
 				int degB = neighbors[b].size();
-				if(degB < 3 || degB > 4)
+				if(degB < 3)
 					continue;//not appropriate degree
 				
 				for(int c : neighbors[a]) {
 					if(c <= b)
 						continue;//can order better
 					int degC = neighbors[c].size();
-					if(degC < 3 || degC > 4)
+					if(degC < 3)
 						continue;//not appropriate degree
 					if(neighbors[b].contains(c))
 						continue;//must be chordless
@@ -758,7 +745,6 @@ public class VertexCoverReductions {
 						System.out.println("Desk! nnz="+numNonz()+", "+Arrays.toString(deskData));
 						
 						progress = true;
-						used_desk = true;
 						continue vLoop;
 					}
 				}

@@ -15,7 +15,7 @@ public class ILP_MinimumCover {
 	SCIP_VAR[] vars;
 	double inf;
 
-	static final boolean ECHO = true;//print progress + versioning to STDOUT
+	static final boolean ECHO = true && Main_Load.TESTING;//print progress + versioning to STDOUT
 	static final boolean ECHO_SETTINGS = false;//print configurations to STDOUT
 	
 	//if true, uses the negation of each variable -- might be better for some heuristics?
@@ -29,8 +29,10 @@ public class ILP_MinimumCover {
 	
 	@SuppressWarnings("unused")
 	public boolean[] solve(MinimumCoverInfo mci) {
-		if(Main_Load.TESTING)
-			System.out.println("Solving with ILP_MinimumCover");
+		if(Main_Load.TESTING) {
+			System.out.println("Solving with ILP_MinimumCover. ");
+			System.out.println(mci.pairList.size()+" K2s, "+mci.bigCycleList.size()+" cycles");
+		}
 		
 		if(mci.chunks.size() > 0)
 			throw new RuntimeException("ILP_MinimumCover doesn't support chunks");

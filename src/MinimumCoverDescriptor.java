@@ -3,6 +3,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.LinkedList;
 import java.util.Stack;
 
 //Tries to reduce the problem to a minimum cover problem and solve that.
@@ -13,7 +14,7 @@ import java.util.Stack;
 public class MinimumCoverDescriptor {
 
 	ArrayList<int[]> pairList;
-	ArrayList<int[]> bigCycleList;
+	LinkedList<int[]> bigCycleList;
 	
 	static final int BRUTE_LIMIT = 22;
 	
@@ -23,7 +24,7 @@ public class MinimumCoverDescriptor {
 		if(Main_Load.TESTING)
 			System.out.println("Solving with MinimumCoverDescriptor");
 		pairList = new ArrayList<int[]>();
-		bigCycleList = new ArrayList<int[]>();
+		bigCycleList = new LinkedList<int[]>();
 		
 		//Find all K2's
 		for(int i=0; i<g.N; i++) {
@@ -75,36 +76,7 @@ public class MinimumCoverDescriptor {
 		//actually let's try checking this
 		int d0_stripped = stripDegZero(g);
 		if(d0_stripped != 0)
-			throw new RuntimeException("StripSCC -> stripDegZero made progress "+d0_stripped);
-//		int d0_stripped = 0;
-//		if(rem_E > 0) {
-//			d0_stripped = stripDegZero(g);
-//			if(d0_stripped > 0)
-//				throw new RuntimeException("WOAH how did that happen?");
-//			rem_E = g.E();
-//			if(Main_Load.TESTING)
-//				System.out.println("D0stripped "+d0_stripped+", now E="+rem_E);
-//		}
-//		while(rem_E > 0 && d0_stripped > 0) {
-//			
-//			if(Main_Load.TESTING)
-//				System.out.println("Another round of SCCstripping");
-//			
-//			scc_stripped = stripSCC(g);
-//			rem_E = g.E();
-//			if(Main_Load.TESTING)
-//				System.out.println("After SCC check, E="+rem_E);
-//			
-//			if(rem_E == 0 || scc_stripped == 0)
-//				break;
-//			
-//			if(Main_Load.TESTING)
-//				System.out.println("Another round of D0stripping");
-//			d0_stripped = stripDegZero(g);
-//			rem_E = g.E();
-//			if(Main_Load.TESTING)
-//				System.out.println("D0stripped "+d0_stripped+", now E="+rem_E);
-//		}
+			throw new RuntimeException("StripSCC -> stripDegZero made progress? "+d0_stripped);
 
 		if(g.E() == 0) {
 			if(bigCycleList.size() != 0)
@@ -113,10 +85,6 @@ public class MinimumCoverDescriptor {
 				System.out.println("EASY: Vertex cover problem");
 			return VertexCoverReductions.solve(pairList, g.N);
 		}
-		
-		//debugging -- quit early here to check we handle all the VC problems
-		if(true)
-			return null;
 		
 		if(Main_Load.TESTING)
 			System.out.println("Stripping complete");
@@ -202,6 +170,9 @@ public class MinimumCoverDescriptor {
 			}
 		}
 		
+		//try to remove any big cycles that are implied by K2's.
+		dropImpliedBigCycles(g);
+		
 		if(isAllCycles) {
 			if(bigCycleList.size() == 0) {
 				if(Main_Load.TESTING) {
@@ -230,7 +201,7 @@ public class MinimumCoverDescriptor {
 		} else {
 			if(Main_Load.TESTING)
 				System.out.println("HARD: Not minimum cover!");
-			MinimumCoverInfo mci = new MinimumCoverInfo(g.N, pairList, bigCycleList, rem_chunks, null);
+			MinimumCoverInfo mci = new MinimumCoverInfo(g.N, pairList, new ArrayList<int[]>(bigCycleList), rem_chunks, null);
 			ArrayList<Integer> sol = new ILP_CoverAndChunks_Reopt().solve(mci);
 			if(Main_Load.TESTING)
 				System.out.println("!!!!!!");
@@ -245,6 +216,49 @@ public class MinimumCoverDescriptor {
 //		System.exit(1);
 	}
 	
+	private void dropImpliedBigCycles(Graph g) {
+		//need fast neighbor lists
+		int N = g.N;
+		int[] deg = new int[N];
+		for(int[] pair : pairList) {
+			deg[pair[0]]++;
+			deg[pair[1]]++;
+		}
+		int[][] neighbors = new int[N][];
+		for(int v=0; v<N; v++) {
+			neighbors[v] = new int[deg[v]];
+		}
+		for(int[] pair : pairList) {
+			//forgive me god for I have sinned
+			neighbors[pair[0]][--deg[pair[0]]] = pair[1];
+			neighbors[pair[1]][--deg[pair[1]]] = pair[0];
+		}
+		for(int v=0; v<N; v++) {
+			Arrays.sort(neighbors[v]);
+		}
+		int dropped = 0;
+
+		cycLoop: for(Iterator<int[]> iter = bigCycleList.iterator();
+				iter.hasNext();) {
+			int[] cyc = iter.next();
+			for(int v1 : cyc) {
+				for(int v2 : cyc) {
+					if(v2 <= v1)
+						continue;
+					if(Arrays.binarySearch(neighbors[v1], v2) >= 0) {
+						iter.remove();
+//						System.out.println("Dropped "+Arrays.toString(cyc));
+//						System.out.println(v1+", "+v2);
+						dropped++;
+						continue cycLoop;
+					}
+				}
+			}
+		}
+		if(Main_Load.TESTING)
+			System.out.println("Dropped "+dropped+" out of "+(dropped+bigCycleList.size()));
+	}
+
 	static ArrayList<Integer> getTrues(boolean[] bools){
 		ArrayList<Integer> res = new ArrayList<>();
 		for(int i=0; i<bools.length; i++)
@@ -830,7 +844,19 @@ public class MinimumCoverDescriptor {
 			if(Main_Load.TESTING)
 				System.out.println("Couldn't splitEdge");
 			//try to clear up manually if we can
-			bruteForceCycleEnumerate(chunk_orig);
+//			ChordlessCycleEnum.enumCycles(chunk_orig, null);//can't use K2's right now because mapping issues
+			
+//			bruteForceCycleEnumerate(chunk_orig);
+			
+			ArrayList<int[]> enumerated = ChordlessCycleEnum.enumTreeSimple(chunk_orig);
+			if(enumerated == null) {
+				if(Main_Load.TESTING)
+					System.out.println("ChordlessCycleEnum quit");
+				//didn't resolve. :(
+			} else {
+				bigCycleList.addAll(enumerated);
+				chunk_orig.clear();
+			}
 			return;
 		}
 
