@@ -15,7 +15,7 @@ public class ILP_MinimumCover {
 	SCIP_VAR[] vars;
 	double inf;
 
-	static final boolean ECHO = false;//print progress + versioning to STDOUT
+	static final boolean ECHO = true;//print progress + versioning to STDOUT
 	static final boolean ECHO_SETTINGS = false;//print configurations to STDOUT
 	
 	//if true, uses the negation of each variable -- might be better for some heuristics?

@@ -23,14 +23,14 @@ public class Main_Load {
 	
 	boolean foundSol = false;
 	
-	static final boolean TESTING = false;
+	static final boolean TESTING = true;
 	static final boolean VERBOSE = TESTING && false;
 	
 	//usually while testing we want to check all our outputs pass.
 	//but sometimes we've set some problems to deliberately skip.
 	//in this case, you can set this false, and the program won't complain
 	//when it fails to solve the problem.
-	static final boolean MUST_VERIFY = true;
+	static final boolean MUST_VERIFY = false;
 	
 	//Extra assertion checks to make sure everything's valid,
 	//but that slow things down significantly
@@ -239,11 +239,7 @@ public class Main_Load {
 		//----okay wipe that----
 		//#115 is VC+67 small cycles, but pretttty hard.
 		//addressed with the stuff in CycleCoverReductions.
-		for(int i=123; i<=123; i+=2) {
-//			if(i==107) {
-//				System.out.println("SKIP "+i);
-//				continue;
-//			}
+		for(int i=1; i<=111; i+=2) {
 			long t0 = System.currentTimeMillis();
 			
 			String problem = prefix+"000".substring(Integer.toString(i).length())+i;
@@ -253,7 +249,13 @@ public class Main_Load {
 			BufferedReader reader = new BufferedReader(new FileReader(inName));
 			PrintStream fileout = new PrintStream(new FileOutputStream(outName));
 			
-			Main_Load ml = new Main_Load(reader, fileout);
+			Main_Load ml;
+			try {
+				ml = new Main_Load(reader, fileout);
+			} catch(Exception e) {
+				System.out.println("Error in i="+i);
+				throw e;
+			}
 			
 			if(ml.foundSol) {
 				verify(inName, outName);

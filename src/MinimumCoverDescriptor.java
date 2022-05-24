@@ -106,6 +106,18 @@ public class MinimumCoverDescriptor {
 //				System.out.println("D0stripped "+d0_stripped+", now E="+rem_E);
 //		}
 
+		if(g.E() == 0) {
+			if(bigCycleList.size() != 0)
+				throw new RuntimeException("How did we get big cycles so early?");
+			if(Main_Load.TESTING)
+				System.out.println("EASY: Vertex cover problem");
+			return VertexCoverReductions.solve(pairList, g.N);
+		}
+		
+		//debugging -- quit early here to check we handle all the VC problems
+		if(true)
+			return null;
+		
 		if(Main_Load.TESTING)
 			System.out.println("Stripping complete");
 		

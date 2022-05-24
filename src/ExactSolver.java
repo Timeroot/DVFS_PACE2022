@@ -27,7 +27,14 @@ public class ExactSolver {
 				for(ReducedGraph part : sccParts) {
 					if(Main_Load.VERBOSE)
 						System.out.println("Recurse on SCC of size "+part.real_N());
-					res.addAll(ExactSolver.solveSCC(part, true));
+					
+					ArrayList<Integer> sccRes = ExactSolver.solveSCC(part, true);
+					
+					if(sccRes == null)//no solution (for some reason, probably debugging purposes)
+						return null;
+					
+					//add it to the solution we're building
+					res.addAll(sccRes);
 					if(Main_Load.VERBOSE)
 						System.out.println("Recursion complete");
 				}
@@ -51,6 +58,9 @@ public class ExactSolver {
 
 		MinimumCoverDescriptor solver = new MinimumCoverDescriptor();
 		ArrayList<Integer> res = solver.solve(Graph.fromReducedGraph(rg_scc));
+		
+		if(res == null)//no solution (for some reason, probably debugging purposes)
+			return res;
 		
 		if(Main_Load.VERIFY_DVFS){//verify
 			Graph check = Graph.fromReducedGraph(rg_scc);
