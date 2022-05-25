@@ -52,7 +52,7 @@ public class ExactSolver {
 	public static ArrayList<Integer> solveSCC(ReducedGraph rg_scc, boolean reprune) {
 		if(reprune)
 			rg_scc.prune();
-		if(Main_Load.TESTING) 
+		if(Main_Load.VERBOSE) 
 			System.out.println("SCC: V="+rg_scc.real_N()+", E="+rg_scc.E());
 //		System.out.println("Heuristic primal: "+ExactSolver_Heuristic.solve(rg_scc).size());
 

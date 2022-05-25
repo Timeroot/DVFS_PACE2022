@@ -23,7 +23,7 @@ public class Main_Load {
 	
 	boolean foundSol = false;
 	
-	static final boolean TESTING = false;
+	static final boolean TESTING = true;
 	static final boolean VERBOSE = false && TESTING;
 	
 	//usually while testing we want to check all our outputs pass.
@@ -35,7 +35,7 @@ public class Main_Load {
 	//Extra assertion checks to make sure everything's valid,
 	//but that slow things down significantly
 	static final boolean GRAPH_CHECK = false;//do regular checks that the graph data is valid
-	static final boolean VERIFY_DVFS = false;//verify the solution from MinimumCoverDescriptor is a DVFS
+	static final boolean VERIFY_DVFS = true;//verify the solution from MinimumCoverDescriptor is a DVFS
 
 	//Run heuristic or exact solver
 	static final boolean HEURISTIC = false;
@@ -166,8 +166,13 @@ public class Main_Load {
 		}
 		
 		foundSol = true;
-		if(TESTING)
+		if(TESTING) {
 			System.out.println("FVS with size "+sol.size());
+			if(check_index >= 0 && check_answers[check_index] != sol.size())
+				throw new RuntimeException("Didn't match known answer "+check_answers[check_index]);
+			else if(check_index >= 0)
+				System.out.println("Matched expectation");
+		}
 		save(fileout, sol);
 		
 		if(KILL_SELF) {
@@ -218,6 +223,14 @@ public class Main_Load {
 		new Main_Load(reader, fileout);
 	}
 	
+	static final int[] check_answers = new int[] {
+		2,674,631,276,450,1917,547,788,364,1137,510,452,273,575,715,2079,277,2179,2679,400,
+		2509,521,2837,2666,2043,2086,2628,1948,1955,214,554,2267,3709,513,2092,675,4420,4069,
+		5292,4906,4887,745,6254,6253,4928,755,10616,5198,9797,4752,21900,10159,58,8888,12710,
+		1741,915,24084,24091,21755,73,20628,22898
+	};
+	static int check_index = -1;
+	
 	//Main method for development and debugging.
 	//reads problems from files, writes to files, in a loop across many problems
 	public static void main_test(String[] args) throws IOException {
@@ -231,7 +244,7 @@ public class Main_Load {
 		//#105 has a large chunk of size 744.
 		//#121 has a large chunk of size 525.
 		//#111, #113 are slow VC problems (136sec, 532sec)
-		for(int i=13; i<=79; i+=2) {
+		for(int i=135; i<=135; i+=2) {
 			long t0 = System.currentTimeMillis();
 			
 			String problem = prefix+"000".substring(Integer.toString(i).length())+i;
@@ -240,6 +253,10 @@ public class Main_Load {
 			String outName = problem+".out";
 			BufferedReader reader = new BufferedReader(new FileReader(inName));
 			PrintStream fileout = new PrintStream(new FileOutputStream(outName));
+			
+			check_index = (i-1)/2;
+			if(check_index >= check_answers.length)
+				check_index = -1;
 			
 			Main_Load ml;
 			try {

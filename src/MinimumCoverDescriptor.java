@@ -21,7 +21,7 @@ public class MinimumCoverDescriptor {
 	public MinimumCoverDescriptor() {}
 
 	public ArrayList<Integer> solve(Graph g) {
-		if(Main_Load.TESTING)
+		if(Main_Load.VERBOSE)
 			System.out.println("Solving with MinimumCoverDescriptor");
 		pairList = new ArrayList<int[]>();
 		bigCycleList = new LinkedList<int[]>();
@@ -58,7 +58,7 @@ public class MinimumCoverDescriptor {
 		}
 		g.checkConsistency();
 		int rem_E = g.E();
-		if(Main_Load.TESTING)
+		if(Main_Load.VERBOSE)
 			System.out.println("Dropped "+pairList.size()+" K2's, now E="+rem_E);
 		
 		//Do an SCC strip on remaining graph
@@ -66,7 +66,7 @@ public class MinimumCoverDescriptor {
 		if(rem_E > 0) {
 			scc_stripped = stripSCC(g);
 			rem_E = g.E();
-			if(Main_Load.TESTING)
+			if(Main_Load.VERBOSE)
 				System.out.println("After SCC check, E="+rem_E);
 		}
 		g.checkConsistency();
@@ -81,17 +81,14 @@ public class MinimumCoverDescriptor {
 		if(g.E() == 0) {
 			if(bigCycleList.size() != 0)
 				throw new RuntimeException("How did we get big cycles so early?");
-			if(Main_Load.TESTING)
+			if(Main_Load.VERBOSE)
 				System.out.println("EASY: Vertex cover problem");
 			return VertexCoverReductions.solve(pairList, g.N);
 		}
 		
-		if(Main_Load.TESTING)
-			System.out.println("Stripping complete");
-		
 		//Is it all cycles?
 		boolean isAllCycles = isAllCycles(g);
-		if(Main_Load.TESTING)
+		if(Main_Load.VERBOSE)
 			System.out.println("isAllCycles == "+isAllCycles);
 		
 		killSimpleCycles(g);
@@ -110,10 +107,10 @@ public class MinimumCoverDescriptor {
 		//skipMergeLong improves this to include things like a->b->c->d->e, a->e.
 		if(!isAllCycles) {
 			int skipMerged = skipMerge(g);
-			if(Main_Load.TESTING)
+			if(Main_Load.VERBOSE)
 				System.out.println("Skipmerged = "+skipMerged);
 			isAllCycles = isAllCycles(g);
-			if(Main_Load.TESTING)
+			if(Main_Load.VERBOSE)
 				System.out.println("isAllCycles2 == "+isAllCycles);
 			
 			killSimpleCycles(g);
@@ -127,10 +124,10 @@ public class MinimumCoverDescriptor {
 		if(!isAllCycles) {
 			int skipMergeLong = skipMergeLong(g);
 			if(skipMergeLong > 0) {
-				if(Main_Load.TESTING)
+				if(Main_Load.VERBOSE)
 					System.out.println("skipMergeLong! is "+skipMergeLong);
 				isAllCycles = isAllCycles(g);
-				if(Main_Load.TESTING)
+				if(Main_Load.VERBOSE)
 					System.out.println("isAllCycles3 == "+isAllCycles);
 				
 				killSimpleCycles(g);
@@ -143,12 +140,10 @@ public class MinimumCoverDescriptor {
 
 		g.checkConsistency();
 		rem_E = g.E();
-
-//		g.dump();
-
+		
 		ArrayList<GraphChunk> rem_chunks = null;
 		if(rem_E > 0) {
-			if(Main_Load.TESTING)
+			if(Main_Load.VERBOSE)
 				System.out.println("Start processSCC");
 			rem_chunks = processSCC(g);
 			//all edges should be pulled out into chunks
@@ -158,13 +153,12 @@ public class MinimumCoverDescriptor {
 				throw new RuntimeException("processSCC didn't clear it?");
 			
 			isAllCycles = (rem_chunks == null);
-			if(Main_Load.TESTING)
+			if(Main_Load.VERBOSE)
 				System.out.println("ProcessSCC "+(isAllCycles?"worked":"failed"));
 			
 			if(rem_chunks != null) {
-				if(Main_Load.TESTING)
+				if(Main_Load.VERBOSE) {
 					System.out.println("Couldn't split");
-				if(Main_Load.TESTING) {
 					System.out.println("Rem_chunks = "+rem_chunks);
 				}
 			}
@@ -179,7 +173,6 @@ public class MinimumCoverDescriptor {
 					System.out.println("EASY: Vertex cover problem");
 //					dumpK2Graph();
 				}
-//				return null;
 				return VertexCoverReductions.solve(pairList, g.N);
 			} else {
 				if(Main_Load.TESTING)
@@ -191,29 +184,14 @@ public class MinimumCoverDescriptor {
 					System.out.println(bigCycleList.size()+" many bigcycles, maximum size "+maxCycleSize);
 				
 				return CycleCoverReductions.solve(pairList, bigCycleList, g.N);
-				
-//				MinimumCoverInfo mci = new MinimumCoverInfo(g.N, pairList, bigCycleList, null, null);
-//				boolean[] sol = new ILP_MinimumCover().solve(mci);
-//				return getTrues(sol);
-				//if that returns, we definitely got a solution!
-//				return null;
 			}
 		} else {
 			if(Main_Load.TESTING)
 				System.out.println("HARD: Not minimum cover!");
 			MinimumCoverInfo mci = new MinimumCoverInfo(g.N, pairList, new ArrayList<int[]>(bigCycleList), rem_chunks, null);
 			ArrayList<Integer> sol = new ILP_CoverAndChunks_Reopt().solve(mci);
-			if(Main_Load.TESTING)
-				System.out.println("!!!!!!");
 			return sol;
-//			g.dump();
 		}
-		//check e_019 for improved skipMerge
-		
-		//rule: if only one vertex with indeg>1, or only one with outdeg>1, can use all cycles through that
-		
-		//Check if it is purely cycles at this point
-//		System.exit(1);
 	}
 	
 	private void dropImpliedBigCycles(Graph g) {
@@ -247,15 +225,13 @@ public class MinimumCoverDescriptor {
 						continue;
 					if(Arrays.binarySearch(neighbors[v1], v2) >= 0) {
 						iter.remove();
-//						System.out.println("Dropped "+Arrays.toString(cyc));
-//						System.out.println(v1+", "+v2);
 						dropped++;
 						continue cycLoop;
 					}
 				}
 			}
 		}
-		if(Main_Load.TESTING)
+		if(Main_Load.VERBOSE)
 			System.out.println("Dropped "+dropped+" out of "+(dropped+bigCycleList.size()));
 	}
 
@@ -275,7 +251,6 @@ public class MinimumCoverDescriptor {
 				System.out.println();
 		}
 		System.out.println("}");
-		System.exit(1);
 	}
 	
 	//returns how many simple cycles were added
@@ -482,7 +457,7 @@ public class MinimumCoverDescriptor {
 		ReducedGraph rg = ReducedGraph.wrap(g, true);
 		SCC scc = new SCC();
 		boolean sccSplit = scc.doSCC(rg);
-		if(Main_Load.TESTING)
+		if(Main_Load.VERBOSE)
 			System.out.println("SCC did split? "+sccSplit+", "+scc.sccInfo.size());
 		if(!sccSplit)
 			return 0;
@@ -545,7 +520,7 @@ public class MinimumCoverDescriptor {
 		SCC scc = new SCC();
 		boolean sccSplit = scc.doSCC(rg);
 		if(!sccSplit) {
-			if(Main_Load.TESTING)
+			if(Main_Load.VERBOSE)
 				System.out.println("No split");
 			//alright, it didn't split. Still make the "chunk" and process
 			GraphChunk chunk = GraphChunk.wrap(g.copy());
@@ -566,14 +541,16 @@ public class MinimumCoverDescriptor {
 		for(ArrayList<Integer> sccComp : scc.sccInfo) {
 			int bigCycleListSizeBefore = bigCycleList.size();
 			GraphChunk chunk = new GraphChunk(g, sccComp, true);
-//			if(Main_Load.TESTING)
-//				System.out.println("processSCC in on "+Arrays.toString(chunk.mapping));
+			if(Main_Load.VERBOSE)
+				System.out.println("processSCC in on "+Arrays.toString(chunk.mapping));
 			processChunk(chunk.gInner);
 			fixChunksSince(bigCycleListSizeBefore, chunk.mapping);
 			if(chunk.gInner.E() != 0) {
 //				chunk.addInto(g);
 				res.add(chunk);
 			}
+			if(Main_Load.VERBOSE)
+				System.out.println("processSCC out");
 		}
 //		g.dump();
 //		return 1;
@@ -606,7 +583,7 @@ public class MinimumCoverDescriptor {
 				(dropC3(g) > 0)) {
 			stripDegZero(g);
 			didSkipOrDrop = true;
-			if(Main_Load.TESTING)
+			if(Main_Load.VERBOSE)
 				System.out.println("Another skipMerge or dropC3 was useful...");
 			g.checkConsistency();
 		}
@@ -627,15 +604,15 @@ public class MinimumCoverDescriptor {
 //		if(Main_Load.TESTING)
 //			System.out.println("findAP = "+findAP);
 		if(wap == -1) {
-			if(Main_Load.TESTING)
+			if(Main_Load.VERBOSE)
 				System.out.println("Couldn't split with WAP, fall to splitEdge");
 			splitEdge(chunk);
-			if(Main_Load.TESTING && chunk.E() > 0) {
+			if(Main_Load.VERBOSE && chunk.E() > 0) {
 				System.out.println("splitWAP didn't split AND splitEdge didn't solve");
 			}
 			return;
 		}
-		if(Main_Load.TESTING) {
+		if(Main_Load.VERBOSE) {
 //			System.out.println("Split at "+wap+" on: ");
 //			chunk.gInner.dump();
 		}
@@ -682,7 +659,7 @@ public class MinimumCoverDescriptor {
 		for(ArrayList<Integer> comp : components) {
 			int bigCycleListSizeBefore = bigCycleList.size();
 			GraphChunk gc = new GraphChunk(chunk, comp, true);
-			if(Main_Load.TESTING)
+			if(Main_Load.VERBOSE)
 				System.out.println("splitWAP in with mapping "+Arrays.toString(gc.mapping));
 			processChunk(gc.gInner);
 			fixChunksSince(bigCycleListSizeBefore, gc.mapping);
@@ -696,7 +673,7 @@ public class MinimumCoverDescriptor {
 		}
 //		System.out.println("After WAP is ");
 //		chunk.gInner.dump();
-		if(Main_Load.TESTING) {
+		if(Main_Load.VERBOSE) {
 			if(chunk.E() == 0) 
 				System.out.println("SplitWAP SOLVED this chunk");
 			else {
@@ -713,7 +690,7 @@ public class MinimumCoverDescriptor {
 		
 		if(g.N > BRUTE_LIMIT) {
 			if(g.nonZeroDegN() <= BRUTE_LIMIT) {
-				if(Main_Load.TESTING)
+				if(Main_Load.VERBOSE)
 					System.out.println("Brute force reduced to mini-chunk bc N="+g.N);
 				GraphChunk reduced = GraphChunk.nonzeroVerts(g, true);
 				int bigCycleListSizeBefore = bigCycleList.size();
@@ -721,7 +698,7 @@ public class MinimumCoverDescriptor {
 				fixChunksSince(bigCycleListSizeBefore, reduced.mapping);
 				return;
 			}
-			if(Main_Load.TESTING) {
+			if(Main_Load.VERBOSE) {
 				System.out.println("Brute force not running on size "+g.N);
 				g.dump();
 			}
@@ -827,7 +804,7 @@ public class MinimumCoverDescriptor {
 					queue.addAll(chunk_minus.backEList[vis]);
 				}
 				if(numComps > 1) {
-					if(Main_Load.TESTING)
+					if(Main_Load.VERBOSE)
 						System.out.println("Num comps = "+numComps+" for u="+u+", v="+v);
 					didSplit = true;
 					splitU = u;
@@ -841,7 +818,7 @@ public class MinimumCoverDescriptor {
 		}
 		
 		if(!didSplit) {
-			if(Main_Load.TESTING)
+			if(Main_Load.VERBOSE)
 				System.out.println("Couldn't splitEdge");
 			//try to clear up manually if we can
 //			ChordlessCycleEnum.enumCycles(chunk_orig, null);//can't use K2's right now because mapping issues
@@ -850,7 +827,7 @@ public class MinimumCoverDescriptor {
 			
 			ArrayList<int[]> enumerated = ChordlessCycleEnum.enumTreeSimple(chunk_orig);
 			if(enumerated == null) {
-				if(Main_Load.TESTING)
+				if(Main_Load.VERBOSE)
 					System.out.println("ChordlessCycleEnum quit");
 				//didn't resolve. :(
 			} else {
@@ -875,7 +852,7 @@ public class MinimumCoverDescriptor {
 				continue;
 			components[compId[v]].add(v);
 		}
-		if(Main_Load.TESTING) {
+		if(Main_Load.VERBOSE) {
 			System.out.println("Split with "+splitU+"->"+splitV+" into "+Arrays.toString(components));
 		}
 		
@@ -900,14 +877,14 @@ public class MinimumCoverDescriptor {
 			}
 			GraphChunk gc = new GraphChunk(chunk_orig, comp, true);
 //			System.out.println("Subgraph is ");
-			if(Main_Load.TESTING) {
+			if(Main_Load.VERBOSE) {
 				System.out.println("splitEdge in on size "+gc.gInner.N);
 				System.out.println("Mapping = "+Arrays.toString(gc.mapping));
 			}
 			int bigCycleListSizeBefore = bigCycleList.size();
 			processChunk(gc.gInner);
 			fixChunksSince(bigCycleListSizeBefore, gc.mapping);
-			if(Main_Load.TESTING) {
+			if(Main_Load.VERBOSE) {
 				System.out.println("splitEdge out");
 			}
 			if(gc.gInner.E() != 0) {
@@ -937,7 +914,8 @@ public class MinimumCoverDescriptor {
 	//In this case, you can describe the graph just by the cycles from each those options,
 	//pretty easily. Returns "true" if this worked and the graph was resolved.
 	boolean checkSingleMultivert(Graph g) {
-		System.gc();
+		killSimpleCycles(g);
+		
 		int numWithIndegOver1 = 0;
 		int numWithOutdegOver1 = 0;
 		for(int i=0; i<g.N; i++) {
@@ -959,9 +937,6 @@ public class MinimumCoverDescriptor {
 				if(inDeg > 1) {
 					highdeg = i; break;
 				}
-			}
-			if(Main_Load.TESTING) {
-				if(g.N==20)System.out.println(g.dumpS());
 			}
 			for(int v2 : g.backEList[highdeg]) {
 				ArrayList<Integer> alCycle = new ArrayList<>();

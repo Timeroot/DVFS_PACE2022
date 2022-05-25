@@ -46,8 +46,7 @@ public class VertexCoverReductions {
 		}
 		
 		if(Main_Load.TESTING){
-			System.out.println("Initial VertexCover problem: N = "+N);
-			System.out.println(numNonz()+" nonempty vertices");
+			System.out.println("Initial VertexCover problem: N = "+numNonz());
 		}
 		
 		boolean progress = true;
@@ -327,7 +326,7 @@ public class VertexCoverReductions {
 			}
 			throw new RuntimeException("Edge {"+x+","+y+"} unfulfilled!");
 		}
-		if(Main_Load.TESTING) {
+		if(Main_Load.VERBOSE) {
 			int size = 0;
 			for(int i=0; i<N; i++) if(solution[i]) size++;
 			System.out.println("Verified solution of size "+size);

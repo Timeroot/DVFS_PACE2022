@@ -155,8 +155,8 @@ public class SCC {
 				}
 			}
 		}
-		if(Main_Load.TESTING)
-			System.out.println("stripSCC removed "+sccStripped+" edges");
+		if(Main_Load.VERBOSE)
+			System.out.println("stripInterSCC removed "+sccStripped+" edges");
 		return sccStripped;
 	}
 	

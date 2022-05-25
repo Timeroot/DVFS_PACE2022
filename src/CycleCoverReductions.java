@@ -34,7 +34,7 @@ public class CycleCoverReductions {
 	static int lastIncludesUpdate;
 	
 	static final boolean CHECK_TWINS = false;
-	static final boolean LOG = true && Main_Load.TESTING;
+	static final boolean LOG = false && Main_Load.TESTING;
 	
 	//check that it works, in case you're afraid of bugs
 	static final boolean VERIFY = true;
@@ -73,7 +73,7 @@ public class CycleCoverReductions {
 		//populate the array isInBigCyc
 		markIsInBigCyc();
 		
-		if(Main_Load.TESTING){
+		if(Main_Load.VERBOSE){
 			System.out.println("Initial CycleCover problem: N = "+N);
 			System.out.println(numNonz()+" nonempty vertices");
 		}

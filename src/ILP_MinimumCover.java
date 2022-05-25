@@ -30,7 +30,7 @@ public class ILP_MinimumCover {
 	@SuppressWarnings("unused")
 	public boolean[] solve(MinimumCoverInfo mci) {
 		if(Main_Load.TESTING) {
-			System.out.println("Solving with ILP_MinimumCover. ");
+			System.out.println("Solving with ILP_MinimumCover.");
 			System.out.println(mci.pairList.size()+" K2s, "+mci.bigCycleList.size()+" cycles");
 		}
 		
@@ -46,6 +46,8 @@ public class ILP_MinimumCover {
 			JSCIP.printVersion(null);
 		JSCIP.includeDefaultPlugins();
 		JSCIP.createProbBasic("prob");
+		
+		JSCIP.setIntParam("display/verblevel", 4);
 		if(!ECHO)
 			JSCIP.setIntParam("display/verblevel", 0);
 		
