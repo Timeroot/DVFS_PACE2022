@@ -14,3 +14,9 @@ Then it can be launched with the main class `Main_Load`. It takes input from std
 as PACE 2022, and outputs a minimal directed feedback vertex set as a list of vertex IDs.
 
 If you want to use it as a library in your program, you should build a `Graph` and then call `ExactSolver.solve(g)`.
+
+# License
+
+DVFS is released under the MIT License, see LICENSE.txt. However, be aware that the necessary components
+SCIP and JNA are released under different licenses. SCIP is (as of the time of this writing) only available
+under the ZIB license, and JNA is available under the Apache-2.0 or LGPL-2.1 licenses.
