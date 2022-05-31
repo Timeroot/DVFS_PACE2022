@@ -678,7 +678,7 @@ public class MinimumCoverDescriptor {
 				System.out.println("SplitWAP SOLVED this chunk");
 			else {
 				System.out.println("splitWAP split but didn't solve this chunk");
-				chunk.dump();
+//				chunk.dump();
 			}
 		}
 	}
@@ -827,8 +827,9 @@ public class MinimumCoverDescriptor {
 			
 			ArrayList<int[]> enumerated = ChordlessCycleEnum.enumTreeSimple(chunk_orig);
 			if(enumerated == null) {
-				if(Main_Load.VERBOSE)
+				if(Main_Load.VERBOSE) {
 					System.out.println("ChordlessCycleEnum quit");
+				}
 				//didn't resolve. :(
 			} else {
 				bigCycleList.addAll(enumerated);

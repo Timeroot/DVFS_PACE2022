@@ -553,7 +553,7 @@ public class VertexCoverReductions {
 							throw new RuntimeException("No deg3 though?");
 						if(Nad.size() > 2){
 							if(LOG) System.out.println("Nad too large, "+Nad);
-							throw new RuntimeException();
+							continue;
 						}
 						
 						HashSet<Integer> Nbc = new HashSet<Integer>(neighbors[b]);
@@ -564,7 +564,7 @@ public class VertexCoverReductions {
 							throw new RuntimeException("No deg3 though?");
 						if(Nbc.size() > 2){
 							if(LOG) System.out.println("Nbc too large, "+Nbc);
-							throw new RuntimeException();
+							continue;
 						}
 						
 						if(LOG) System.out.println("Desk? "+a+"-"+b+"-"+c+"-"+d);

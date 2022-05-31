@@ -58,6 +58,7 @@ public class ExactSolver {
 
 		MinimumCoverDescriptor solver = new MinimumCoverDescriptor();
 		ArrayList<Integer> res = solver.solve(Graph.fromReducedGraph(rg_scc));
+//		ArrayList<Integer> res = new ILP_DVFS_Reopt().solve(Graph.fromReducedGraph(rg_scc));
 		
 		if(res == null)//no solution (for some reason, probably debugging purposes)
 			return res;

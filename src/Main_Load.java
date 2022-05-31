@@ -23,8 +23,8 @@ public class Main_Load {
 	
 	boolean foundSol = false;
 	
-	static final boolean TESTING = true;
-	static final boolean VERBOSE = false && TESTING;
+	static final boolean TESTING = false;
+	static final boolean VERBOSE = true && TESTING;
 	
 	//usually while testing we want to check all our outputs pass.
 	//but sometimes we've set some problems to deliberately skip.
@@ -244,7 +244,7 @@ public class Main_Load {
 		//#105 has a large chunk of size 744.
 		//#121 has a large chunk of size 525.
 		//#111, #113 are slow VC problems (136sec, 532sec)
-		for(int i=135; i<=135; i+=2) {
+		for(int i=167; i<=167; i+=2) {
 			long t0 = System.currentTimeMillis();
 			
 			String problem = prefix+"000".substring(Integer.toString(i).length())+i;

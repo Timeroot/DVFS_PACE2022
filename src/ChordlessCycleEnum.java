@@ -8,6 +8,7 @@ import java.util.Random;
 public class ChordlessCycleEnum {
 	//Slow, simple method. Fast on small graphs, but
 	//O(n!) time on big dense graphs. Simple implementation means I'm more confident in correctness.
+	static final int MAX_NODE = 10_000_000;
 	private static long searchStart, nodes;
 	public static ArrayList<int[]> enumTreeSimple(Graph g){
 		int N = g.N;
@@ -19,8 +20,12 @@ public class ChordlessCycleEnum {
 		nodes = 0;
 		for (int i = 0; i < N; i++) {
 			enumTreeSimple_help(g, i, path, resList, true, blocks);
-			if(nodes > 1000000)
+			if(nodes > MAX_NODE) {
+				if(Main_Load.VERBOSE) {
+					System.out.println("ChordlessCycle gave up at "+i+"/"+N);
+				}
 				return null;
+			}
 			blocks[i]++; //block that vertex off from future exploration
 		}
 		return resList;
@@ -30,7 +35,7 @@ public class ChordlessCycleEnum {
 			ArrayDeque<Integer> path, ArrayList<int[]> resList, boolean first, int[] blocks) {
 
 		nodes++;
-		if(nodes > 1000000)
+		if(nodes > MAX_NODE)
 			return;
 		
 //		System.out.println("Enter "+v+", "+path+", "+first+", "+Arrays.toString(blocks));
@@ -41,7 +46,7 @@ public class ChordlessCycleEnum {
 			if (v == path.getFirst()) {
 				//cycle found
 				resList.add(path.stream().mapToInt(i -> i).toArray());
-//				if(resList.size() % 1000 == 0)
+//				if(Main_Load.TESTING && resList.size() % 100 == 0)
 //					System.out.println("Found "+resList.size()+" cycles so far (t="+(System.currentTimeMillis()-searchStart)+"ms)");
 				return;
 			}
@@ -66,7 +71,7 @@ public class ChordlessCycleEnum {
 				if(blocks[c] > 1)//1 because this is a child. Anything else is bad news
 					continue;
 				enumTreeSimple_help(g, c, path, resList, false, blocks);
-				if(nodes > 1000000)
+				if(nodes > MAX_NODE)
 					return;
 			}
 		}
@@ -162,10 +167,13 @@ public class ChordlessCycleEnum {
 		}
 		
 		searchStart = System.currentTimeMillis();
+		nodes = 0;
 		for (int i = 0; i < N; i++) {
 			path.clear();
 			path.add(i);
 			bisdorff_helper(g, path, i, resList, visitedLEdges);
+			if(nodes > MAX_NODE)
+				return null;
 		}
 		//bisdorff doesn't get K2's
 		for(int v1=0; v1<N; v1++) {
@@ -182,13 +190,18 @@ public class ChordlessCycleEnum {
 	//what bisdorff calls chordlessCircuit(P, vk)
 	private static void bisdorff_helper(Graph g, ArrayDeque<Integer> path,
 			int vk, ArrayList<int[]> resList, HashSet<Integer>[] visitedLEdges){
+
+		nodes++;
+		if(nodes > MAX_NODE)
+			return;
+		
 		int vPrev = path.getLast();
 		visitedLEdges[vPrev].add(vk);
 		
 		if(g.eList[vPrev].contains(vk)) {
 			resList.add(path.stream().mapToInt(i -> i).toArray());
-			if(resList.size() % 1000 == 0)
-				System.out.println("Found "+resList.size()+" cycles so far (t="+(System.currentTimeMillis()-searchStart)+"ms)");
+//			if(Main_Load.TESTING && resList.size() % 100 == 0)
+//				System.out.println("Found "+resList.size()+" cycles so far (t="+(System.currentTimeMillis()-searchStart)+"ms)");
 			return;
 		} else {
 			for(int v : g.eList[vPrev]) {
@@ -214,6 +227,8 @@ public class ChordlessCycleEnum {
 					if(noChord) {
 						path.addLast(v);
 						bisdorff_helper(g, path, vk, resList, visitedLEdges);
+						if(nodes > MAX_NODE)
+							return;
 						//pop path back to down to its original content
 						while(path.size() > PcurrentSize)
 							path.removeLast();
@@ -224,12 +239,141 @@ public class ChordlessCycleEnum {
 	}
 	
 	//An algorithm that makes sense to me and is simple:
+	//Explore it in a DFS tree, but if you ever don't have a path through, return immediately.
+	public static ArrayList<int[]> enumTreeConnectivity(Graph g){
+		System.out.println("START");
+		int N = g.N;
+		int[] blocks = new int[N];
+		ArrayDeque<Integer> path = new ArrayDeque<Integer>();
+		ArrayList<int[]> resList = new ArrayList<>();
+
+		searchStart = System.currentTimeMillis();
+		nodes = 0;
+		for (int i = 0; i < N; i++) {
+			System.out.println("Head "+i);
+			enumTreeConnectivity_help(g, i, path, resList, true, blocks);
+			if(nodes > MAX_NODE) {
+				if(Main_Load.VERBOSE) {
+					System.out.println("ChordlessCycle gave up at "+i+"/"+N);
+					Thread.dumpStack();
+					System.exit(1);
+				}
+				return null;
+			}
+			blocks[i]++; //block that vertex off from future exploration
+		}
+		return resList;
+	}
 	
+	private static void enumTreeConnectivity_help(Graph g, int v,
+			ArrayDeque<Integer> path, ArrayList<int[]> resList, boolean first, int[] blocks) {
+		nodes++;
+		if(nodes > MAX_NODE)
+			return;
+		
+		if(first) {
+			blocks[v] = -3*g.N;
+		} else {
+			if (v == path.getFirst()) {
+				//cycle found
+				resList.add(path.stream().mapToInt(i -> i).toArray());
+				if(Main_Load.TESTING && resList.size() % 1 == 0)
+					System.out.println("Found "+resList.size()+" cycles so far (t="+(System.currentTimeMillis()-searchStart)+"ms)");
+				return;
+			}
+			
+			blocks[v]++;
+			for (Integer c : g.backEList[v]) {
+				blocks[c]++;
+			}
+		}
+		//mark the children as blocked so we don't visit them through a roundabout way
+		for (Integer c : g.eList[v]) {
+			blocks[c]++;
+		}
+		
+		path.addLast(v);
+		
+
+		//if the start is in the neighbors, must go straight there
+		if(g.eList[v].contains(path.getFirst())) {
+			enumTreeConnectivity_help(g, path.getFirst(), path, resList, false, blocks);
+		} else {
+			System.out.println("Searching from "+v+", depth="+path.size());
+			
+			for (Integer c : g.eList[v]) {
+				if(blocks[c] > 1)//1 because this is a child. Anything else is bad news
+					continue;
+				
+				if(!checkConnectivity(g, c, path.getFirst(), blocks)) {
+					continue;
+				}
+
+				int sizeB4 = resList.size();
+				System.out.println("Enter "+c);
+				enumTreeConnectivity_help(g, c, path, resList, false, blocks);
+				System.out.println("Exit "+c);
+				if(nodes > MAX_NODE)
+					return;
+
+				if(resList.size() == sizeB4 && v != path.getFirst()) {
+					g.dump();
+					throw new RuntimeException();
+				}
+			}
+				
+		}
+
+		if(first) {
+			blocks[v] = 0;//reset the 3*N
+		} else {
+			blocks[v]--;
+			for (Integer c : g.backEList[v]) {
+				blocks[c]--;
+			}
+		}
+		for (Integer c : g.eList[v]) {
+			blocks[c]--;
+		}
+		
+		path.pollLast();
+		return;
+	}
+	
+	//Is there a path through g, using only vertices where blocks[] <= 0, from
+	// v to dest?
+	private static boolean checkConnectivity(Graph g, int v, int dest, int[] blocks) {
+		boolean[] visited = new boolean[g.N];
+		for(int i=0; i<g.N; i++)
+			if(blocks[i] > 0)
+				visited[i] = true;
+		visited[v] = false;//gotta unmark
+		boolean res = checkConnectivity_helper(g, v, dest, visited);
+		if(res) System.out.println(v);
+		return res;
+	}
+	
+	private static boolean checkConnectivity_helper(Graph g, int v, int dest, boolean[] visited) {
+		if(v==dest) {
+			System.out.print("Path found: ");
+			return true;
+		}
+		if (visited[v])
+			return false;
+		visited[v] = true;
+		for (Integer c : g.eList[v])
+			if (checkConnectivity_helper(g, c, dest, visited)) {
+				System.out.print(c+"<--");
+				return true;
+			}
+		return false;
+	}
+
 	///////////////////////////////////
 	//Try different ones and check that they agree
 	private static final boolean trySimple = true;
 	private static final boolean tryBrute = false;
-	private static final boolean tryBisdorff = false;
+	private static final boolean tryBisdorff = true;
 	public static void enumCycles(Graph g, ArrayList<int[]> k2s) {
 		if(k2s != null) {
 			System.out.println("Re-including "+k2s.size()+" k2s");
@@ -278,10 +422,24 @@ public class ChordlessCycleEnum {
 			System.out.println("enumTreeSimple: "+(endT-startT)+"ms, size = "+res.size());
 	//		for(int[] cyc : res)
 	//			System.out.println(Arrays.toString(cyc));
-//			if(hashCycs(res) != hash) {
-//				throw new RuntimeException();
-//			}
+			if(hashCycs(res) != hash) {
+				throw new RuntimeException();
+			}
 		}
+
+		if(trySimple) {
+			startT = System.currentTimeMillis();
+			res = enumTreeConnectivity(g);
+			endT = System.currentTimeMillis();
+			System.out.println("enumTreeConnectivity: "+(endT-startT)+"ms, size = "+res.size());
+	//		for(int[] cyc : res)
+	//			System.out.println(Arrays.toString(cyc));
+			if(hashCycs(res) != hash) {
+				throw new RuntimeException();
+			}
+		}
+		
+		
 
 		if(k2s != null) {
 			System.out.println("Re-removing "+k2s.size()+" k2s");

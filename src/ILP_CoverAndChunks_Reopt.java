@@ -24,7 +24,7 @@ public class ILP_CoverAndChunks_Reopt {
 	int cycle_i;
 	SCIP_VAR[] vars;
 
-	static final boolean ECHO = false;//print progress + versioning to STDOUT
+	static final boolean ECHO = true && Main_Load.TESTING;//print progress + versioning to STDOUT
 	static final boolean ECHO_SETTINGS = false;//print configurations to STDOUT
 	
 	//How strong to presolve?
@@ -151,7 +151,7 @@ public class ILP_CoverAndChunks_Reopt {
 		
 //		JSCIP.setLongintParam("limits/nodes", node_limit);
 //		JSCIP.setRealParam("limits/time", time_limit);
-		JSCIP.setIntParam("reoptimization/maxsavednodes", node_limit);
+//		JSCIP.setIntParam("reoptimization/maxsavednodes", node_limit);
 //		JSCIP.setRealParam("reoptimization/delay", time_limit);
 		
 //		JSCIP.presolve();
