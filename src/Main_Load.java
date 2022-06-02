@@ -244,11 +244,11 @@ public class Main_Load {
 		//#133 has a large chunk of {N=1650,E=5134}.
 		//#157 is a tricky cycle cover problem -- just barely at time limit.
 		//#151 is a pretty hard cycle cover problem.
-		for(int i=135; i<=151; i+=2) {
+		for(int i=127; i<=127; i+=2) {
 			long t0 = System.currentTimeMillis();
 			
 			String problem = prefix+"000".substring(Integer.toString(i).length())+i;
-			System.out.println("Running on "+problem);
+			System.out.println("Running on "+problem+", OPTIL #"+(i-1)/2);
 			String inName = problem;
 			String outName = problem+".out";
 			BufferedReader reader = new BufferedReader(new FileReader(inName));

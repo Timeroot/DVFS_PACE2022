@@ -107,7 +107,7 @@ public class GraphChunk {
 		}
 		
 		//Expand the graph
-		gInner.expandBy(newSize - mapping.length);
+		gInner.expandBy(growth);
 		
 		//Build the new mapping
 		int[] newMapping = Arrays.copyOf(mapping, newSize);

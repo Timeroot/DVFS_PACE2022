@@ -409,7 +409,7 @@ public class ILP_CoverAndChunks_Conshdlr {
 		int cyclesAdded = 0;
 		
 		ArrayDeque<Integer> cycQ;
-		while((cycQ = g.findCycleDFS()) != null) {
+		while((cycQ = g.findCycleDFS(null)) != null) {
 			//remove that cycle from the graph, hope we get another one.
 			g.clearEdge(cycQ.peekLast(), cycQ.peekFirst());
 			//put it in the cycle list

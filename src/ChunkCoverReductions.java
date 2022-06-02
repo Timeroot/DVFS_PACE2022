@@ -37,6 +37,7 @@ public class ChunkCoverReductions {
 	//this makes a copy.
 	static final boolean CLONE_BIG_CYC = true;
 	static final boolean CHECK_KFUNNEL = true;
+	static final boolean CHECK_CONFINE = true;
 	
 	@SuppressWarnings("unchecked")
 	public static ArrayList<Integer> solve(ArrayList<int[]> _edges, LinkedList<int[]> _bigCyc,
@@ -85,6 +86,7 @@ public class ChunkCoverReductions {
 			checkConsistency();
 			progress = false;
 			for(int v=0; v<N; v++) {
+				
 				shrinkCyclesNewIncludes();
 				markIsInBigCyc();
 				
@@ -330,6 +332,9 @@ public class ChunkCoverReductions {
 			if(!progress) {
 				progress = checkKfunnel();
 			}
+			if(!progress) {
+				progress = checkConfinement();
+			}
 			
 			//Now we can look for anything of degree zero that can be dropped / included
 			shrinkCyclesNewIncludes();
@@ -350,7 +355,7 @@ public class ChunkCoverReductions {
 			System.out.println("Reductions complete.");
 			System.out.println(numNonz()+" nonempty vertices");
 		}
-		
+
 		boolean[] solution = solveCore();
 		//add in the "includes"
 		for(int v : includes)
@@ -680,6 +685,12 @@ public class ChunkCoverReductions {
 				for(int ind : inds) {
 					chunk.gInner.eList[ind].addAll(origElist);
 					chunk.gInner.backEList[ind].addAll(origBackElist);
+					for(int fwd : origElist) {
+						chunk.gInner.backEList[fwd].add(ind);
+					}
+					for(int bwd : origBackElist) {
+						chunk.gInner.eList[bwd].add(ind);
+					}
 				}
 				//update degrees
 				for(int ind : inds) {
@@ -782,6 +793,7 @@ public class ChunkCoverReductions {
 					}
 					
 					chunk.gInner.clearVertex(vi);
+					chunk.gInner.checkConsistency();
 					changed = true;
 					chunkChanged = true;
 					
@@ -798,7 +810,9 @@ public class ChunkCoverReductions {
 						int outDeg = chunk.gInner.outDeg[vi];
 						if((inDeg > 0 && outDeg == 0) ||
 							(outDeg > 0 && inDeg == 0)) {
+
 							chunk.gInner.clearVertex(vi);
+							chunk.gInner.checkConsistency();
 							chunkChanged = true;
 							if(LOG) {
 								System.out.println("Led to clearing "+vi);
@@ -864,6 +878,121 @@ public class ChunkCoverReductions {
 				inChunk[v] = true;
 			}
 		}
+	}
+	
+	//Based on the confinement described in "Confining sets and avoiding bottlenecks"
+	private static boolean checkConfinement() {
+		if(!CHECK_CONFINE)
+			return false;
+		
+		boolean progress = false;
+		
+		HashSet<Integer> S = new HashSet<>();
+		HashSet<Integer> NS = new HashSet<>();
+		HashSet<Integer> W = new HashSet<>();
+		
+		vLoop: for(int v=0; v<N; v++) {
+			if(neighbors[v].size() == 0)
+				continue;
+//					if(LOG) System.out.println("Checking confinement on "+v);
+		
+			S.clear();
+			S.add(v);
+
+			//neighbors N[S] of S
+			NS.clear();
+			NS.add(v);
+			NS.addAll(neighbors[v]);
+			
+			Sloop: do{
+				
+				//extending vertices
+				W.clear();
+				boolean has_empty_nu_not_ns = false;//is there a u in N(S) such that N(u) - N[S] is empty?
+				for(int u : NS) {
+					if(S.contains(u))//u is only from N(S) not N[S]
+						continue;
+					int neighbors_in_S = 0;
+					for(int nu : neighbors[u]) {
+						if(S.contains(nu))
+							neighbors_in_S++;
+					}
+					if(neighbors_in_S == 0)
+						throw new RuntimeException("What? "+u+", "+S+", "+NS+", "+neighbors[u]);
+					if(neighbors_in_S > 1)
+						continue;//not a child
+					ArrayList<Integer> nu_not_ns = new ArrayList<>();
+					for(int nu : neighbors[u]) {
+						if(!NS.contains(nu))
+							nu_not_ns.add(nu);
+					}
+					boolean u_extending = (nu_not_ns.size() == 1);
+					if(u_extending) {
+//								if(LOG) System.out.println("extending vertex "+u+", add "+nu_not_ns);
+						W.addAll(nu_not_ns);
+					}
+					if(nu_not_ns.size() == 0) {
+//								if(LOG) System.out.println("Killing vertex "+u);
+						has_empty_nu_not_ns = true;
+					}
+				}
+				if(has_empty_nu_not_ns) {
+//					if(LOG) System.out.println("Unconfined: has_empty="+has_empty_nu_not_ns+", for W="+W);
+					break Sloop;
+				}
+				if(W.size() == 0) {// |N(u) - N[S]| >= 2 for all u in N(S)
+					//we found the set that confines v.
+					if(S.size() > 1) {
+//								if(LOG) System.out.println("Confining set for "+v+" is "+S);
+					}
+					continue vLoop;
+				}
+				//W is built. check if it's an independent set
+				boolean W_independent = true;
+				wLoop: for(int w : W) {
+					for(int nw : neighbors[w]) {
+						if(W.contains(nw)) {
+							W_independent = false;
+							break wLoop;
+						}
+					}
+				}
+				if(W_independent) {
+					//add W and repeat
+					S.addAll(W);
+					for(int w : W) {
+						NS.add(w);
+						NS.addAll(neighbors[w]);
+					}
+//							if(LOG) System.out.println("Confining set for "+v+" grew to "+S);
+					continue Sloop;
+				} else {
+//					if(LOG) System.out.println("Unconfined: "+W_independent+", "+has_empty_nu_not_ns+", for W="+W);
+					break Sloop;
+				}
+			}while(true);
+			//check if any of S, NS, or W has a cycle.
+//			for(int vo : W) {
+//				if(inBigCyc[vo] > 0 || inChunk[vo])
+//					continue vLoop;
+//			}
+//			for(int vo : S) {
+//				if(inBigCyc[vo] > 0 || inChunk[vo])
+//					continue vLoop;
+//			}
+			for(int vo : NS) {
+				if(inBigCyc[vo] > 0 || inChunk[vo])
+					continue vLoop;
+			}
+			//v is unconfined, let's include it
+			if(LOG) System.out.println("Unconfined! "+v);
+			includes.add(v);
+			clearVertex(v);
+			progress = true;
+		}
+		if(LOG) System.out.println("Confinement progress="+progress);
+			
+		return progress;
 	}
 	
 	static void checkConsistency() {

@@ -247,7 +247,7 @@ public class MinimumCoverDescriptor {
 	void dumpK2Graph() {
 		System.out.print("{");
 		for(int[] pair : pairList) {
-			System.out.print("{"+(1+pair[0])+","+(1+pair[1])+"},");
+			System.out.print("{"+(pair[0])+","+(pair[1])+"},");
 			if(Math.random() < 0.1)
 				System.out.println();
 		}

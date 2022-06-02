@@ -644,6 +644,21 @@ public interface JSCIP extends Library {
 	/* scip_sol.h */
 	SCIP_SOL SCIPgetBestSol(SCIP scip);
 	static SCIP_SOL getBestSol() { return LIB.SCIPgetBestSol(scip); }
+
+	int SCIPgetNSols(SCIP scip);
+	static int getNSols() { return LIB.SCIPgetNSols(scip); }
+
+	Pointer SCIPgetSols(SCIP scip);
+	static SCIP_SOL[] getSols() { 
+		int n = getNSols();
+		Pointer scip_sol_pp = LIB.SCIPgetSols(scip);
+		Pointer[] scip_sol_arr = scip_sol_pp.getPointerArray(0, n);
+		SCIP_SOL[] ret = new SCIP_SOL[n];
+		for(int i=0; i<n; i++) {
+			ret[i] = new SCIP_SOL(scip_sol_arr[i]);
+		}
+		return ret;
+	}
 	
 	SCIP_RETCODE SCIPprintSol(SCIP scip, SCIP_SOL sol, Pointer file, boolean printzeros);
 	static void CALL_SCIPprintSol(SCIP scip, SCIP_SOL sol, Pointer file, boolean printzeros) {

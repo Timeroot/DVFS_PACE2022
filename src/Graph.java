@@ -2,6 +2,7 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
+import java.util.Random;
 
 public class Graph {
 	int N;
@@ -112,7 +113,7 @@ public class Graph {
 	static long chordTime = 0; 
 
 	@SuppressWarnings("unused")
-	private boolean findCycleHelper(int i, boolean[] visited, boolean[] inPath, ArrayDeque<Integer> path) {
+	private boolean findCycleHelper(int i, boolean[] visited, boolean[] inPath, ArrayDeque<Integer> path, Random r) {
 
 		if (inPath[i]) {
 			// made it back to "i" which we visited previously.
@@ -189,22 +190,40 @@ public class Graph {
 		inPath[i] = true;
 		path.addLast(i);
 
-		for (Integer c : eList[i])
-			if (findCycleHelper(c, visited, inPath, path))
+		if(r != null) {
+			//for randomness, do two passes where we might skip over things
+			for (Integer c : eList[i]) {
+				if(r.nextInt(4) == 0)
+					continue;
+				if (findCycleHelper(c, visited, inPath, path, r))
+					return true;
+			}
+			for (Integer c : eList[i]) {
+				if(r.nextInt(4) == 0)
+					continue;
+				if (findCycleHelper(c, visited, inPath, path, r))
+					return true;
+			}
+			//everything visited gets marked visited. Our last pass makes sure we hit everything.
+		}
+		for (Integer c : eList[i]) {
+			if (findCycleHelper(c, visited, inPath, path, r))
 				return true;
+		}
 
 		inPath[i] = false;
 		path.pollLast();
 		return false;
 	}
 
-	ArrayDeque<Integer> findCycleDFS() {
+	ArrayDeque<Integer> findCycleDFS(Random r) {
 		boolean[] visited = new boolean[N];
 		boolean[] recStack = new boolean[N];
 		ArrayDeque<Integer> path = new ArrayDeque<Integer>();
 
+		int shift = (r==null?0:r.nextInt(N));
 		for (int i = 0; i < N; i++)
-			if (findCycleHelper(i, visited, recStack, path))
+			if (findCycleHelper((i+shift)%N, visited, recStack, path, r))
 				return path;
 
 		return null;
@@ -265,13 +284,14 @@ public class Graph {
 	void expandBy(int vNew) {
 		int Nnew = N + vNew;
 		inDeg = Arrays.copyOf(inDeg, Nnew);
-		outDeg = Arrays.copyOf(inDeg, Nnew);
+		outDeg = Arrays.copyOf(outDeg, Nnew);
 		eList = Arrays.copyOf(eList, Nnew);
-		backEList = Arrays.copyOf(eList, Nnew);
+		backEList = Arrays.copyOf(backEList, Nnew);
 		for(int i=N; i<Nnew; i++) {
 			eList[i] = new HashSet<>();
 			backEList[i] = new HashSet<>();
 		}
+		N += vNew;
 	}
 	
 	String dumpS() {
