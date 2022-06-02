@@ -261,6 +261,19 @@ public class Graph {
 		return res;
 	}
 	
+	//adds vNew many new vertices
+	void expandBy(int vNew) {
+		int Nnew = N + vNew;
+		inDeg = Arrays.copyOf(inDeg, Nnew);
+		outDeg = Arrays.copyOf(inDeg, Nnew);
+		eList = Arrays.copyOf(eList, Nnew);
+		backEList = Arrays.copyOf(eList, Nnew);
+		for(int i=N; i<Nnew; i++) {
+			eList[i] = new HashSet<>();
+			backEList[i] = new HashSet<>();
+		}
+	}
+	
 	String dumpS() {
 		String res = "";
 		res += "{";

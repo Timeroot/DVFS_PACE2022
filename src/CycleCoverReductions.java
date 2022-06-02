@@ -73,6 +73,7 @@ public class CycleCoverReductions {
 		}
 		
 		//populate the array isInBigCyc
+		inBigCyc = new int[N];
 		markIsInBigCyc();
 		
 		if(Main_Load.VERBOSE){
@@ -85,6 +86,8 @@ public class CycleCoverReductions {
 			checkConsistency();
 			progress = false;
 			for(int v=0; v<N; v++) {
+				shrinkCyclesNewIncludes();
+				markIsInBigCyc();
 				int deg = neighbors[v].size();
 				//deg 0 --> it's not even there
 				if(deg == 0) {
@@ -106,8 +109,11 @@ public class CycleCoverReductions {
 					neighbors[other].remove((Integer)other);
 					//include the other
 					includes.add(other);
+					if(LOG) {
+						System.out.println("Remove degone "+v+"-"+other);
+						System.out.println(neighbors[other]);
+					}
 					clearVertex(other);
-					if(LOG) System.out.println("Remove degone "+v+"-"+other);
 					progress = true;
 					continue;
 				}
@@ -259,13 +265,6 @@ public class CycleCoverReductions {
 							u = oB;
 						}
 						if(u != -1) {
-							if(inBigCyc[u] > 0) {
-								//TODO can still be reduced, this just needs to take any cycles
-								//that u has and replicate them, replacing u once with each of
-								//the other two neighbors of v.
-								continue;
-							}
-							
 							//a funnel exists, oC - v - {oA, oB}
 							HashSet<Integer> Nv = new HashSet<Integer>(neighbors[v]);
 							HashSet<Integer> Nu = new HashSet<Integer>(neighbors[u]);
@@ -284,6 +283,10 @@ public class CycleCoverReductions {
 							clearVertex(v);
 							Nv_sub_Nu.remove(u);
 							Nu_sub_Nv.remove(v);
+
+							if(inBigCyc[u] > 0) {
+								replaceAlternativeInChunks(u, Nv_sub_Nu);
+							}
 							//add Nu cap Nv to the vertex cover
 							includes.addAll(Nu_cap_Nv);
 							for(int cap : Nu_cap_Nv)
@@ -323,6 +326,7 @@ public class CycleCoverReductions {
 			//Now we can look for anything of degree zero that can be dropped / included
 			shrinkCyclesNewIncludes();
 			markIsInBigCyc();
+			if(LOG) System.out.println("After pass, "+bigCycList.size()+" bigs left");
 			
 			if(dropImpliedBigCycles())
 				markIsInBigCyc();
@@ -435,6 +439,8 @@ public class CycleCoverReductions {
 							else if(vo_2 == v)
 								vo_2 = cyc[2];
 							iter.remove();
+							if(neighbors[vo_1].contains(vo_2))
+								continue;
 							neighbors[vo_1].add(vo_2);
 							neighbors[vo_2].add(vo_1);
 							changed = true;
@@ -490,6 +496,8 @@ public class CycleCoverReductions {
 	
 	private static boolean shrinkCyclesNewIncludes() {
 		int nI = includes.size() - lastIncludesUpdate;
+		if(nI == 0)
+			return false;
 		int[] newIncludes = new int[nI];
 		for(int i=0 ; i<nI; i++) {
 			newIncludes[i] = includes.get(lastIncludesUpdate + i);
@@ -609,14 +617,6 @@ public class CycleCoverReductions {
 				if(totalDeg == expectedTotalDeg) {
 					//Great!
 					int nv = neighbors[v].get(lowDegNvi);
-
-					if(inBigCyc[nv] > 0) {
-						//TODO can still be reduced, this just needs to take any cycles
-						//that nv has and replicate them, replacing nv once with each of
-						//the other neighbors of v.
-						continue;
-					}
-					
 					if(LOG) System.out.println("k-funnel at "+v+" and "+nv);
 					resolveFunnel(v, nv);
 					progress = true;
@@ -637,14 +637,6 @@ public class CycleCoverReductions {
 				} else {
 					//great, there's exactly one edge missing, which means that it's a funnel with either one.
 					int nv = neighbors[v].get(lowishDegNvi);
-
-					if(inBigCyc[nv] > 0) {
-						//TODO can still be reduced, this just needs to take any cycles
-						//that nv has and replicate them, replacing nv once with each of
-						//the other neighbors of v.
-						continue;
-					}
-					
 					if(LOG) System.out.println("k-funnel at "+v+" and "+nv);
 					resolveFunnel(v, nv);
 					progress = true;
@@ -676,6 +668,10 @@ public class CycleCoverReductions {
 		clearVertex(v);
 		Nv_sub_Nu.remove(u);
 		Nu_sub_Nv.remove(v);
+
+		if(inBigCyc[u] > 0) {
+			replaceAlternativeInChunks(u, Nv_sub_Nu);
+		}
 		//add Nu cap Nv to the vertex cover
 		includes.addAll(Nu_cap_Nv);
 		for(int cap : Nu_cap_Nv)
@@ -701,11 +697,115 @@ public class CycleCoverReductions {
 		deg2Folds_and_funnels.add(funnelData);
 	}
 	
+
+	private static void replaceAlternativeInChunks(int u, HashSet<Integer> replicators) {
+		//add in any cycles missing from
+		if(inBigCyc[u] > 0) {
+			ArrayList<int[]> replacedCycles = new ArrayList<>();
+			
+			for(Iterator<int[]> iter = bigCycList.iterator();
+					iter.hasNext();) {
+				int[] cyc = iter.next();
+				boolean has = false;
+				for(int a : cyc) {
+					if(a == u) {
+						has = true; break; 
+					}
+				}
+				if(!has)
+					continue;
+				//If the cycle contains any r from the replicators, then we actually actually just
+				//remove u from the cycle and call it a day. Because we create a new cycle where
+				//we replace u by r, which is already in the cycle; this cycle will be one smaller
+				//than all the others, and so dominate all the others. Additionally, if the cycle
+				//is size 3, this becomes an edge.
+				boolean cycHitsReps = false;
+				for(int c : cyc) {
+					if(replicators.contains(c)) {
+						cycHitsReps = true;
+						break;
+					}
+				}
+				if(cycHitsReps) {
+					//Don't need to replicate, just reduce.
+					if(cyc.length == 3) {
+						//drop u from the 3-cycle, add an edge between the other two.
+						int vo_1 = cyc[0];
+						int vo_2 = cyc[1];
+						if(vo_1 == u)
+							vo_1 = cyc[2];
+						else if(vo_2 == u)
+							vo_2 = cyc[2];
+						
+						iter.remove();
+						for(int c : cyc) {
+							inBigCyc[c]--;
+						}
+						
+						if(neighbors[vo_1].contains(vo_2)) {
+							continue;
+						}
+						neighbors[vo_1].add(vo_2);
+						neighbors[vo_2].add(vo_1);
+					} else {
+						//just shrink and turn it into a smaller one
+						int[] newCyc = new int[cyc.length-1];
+						int dest = 0;
+						for(int a : cyc) {
+							if(a != u)
+								newCyc[dest++] = a;
+						}
+						iter.remove();
+						inBigCyc[u]--;
+						
+						replacedCycles.add(newCyc);
+					}
+					continue;
+				}
+				
+				for(int rep : replicators) {
+					int[] newCyc = new int[cyc.length];
+					int dest = 0;
+					for(int c : cyc) {
+						int val = (c==u) ? rep : c;
+						newCyc[dest++] = val;
+						inBigCyc[val]++;
+					}
+					replacedCycles.add(newCyc);
+				}
+				
+				iter.remove();
+				for(int c : cyc) {
+					inBigCyc[c]--;
+				}
+			}
+			bigCycList.addAll(replacedCycles);
+		} else {
+			throw new RuntimeException("Shouldn't have come here");
+		}
+		verifyInBigCyc();
+	}
+	
 	static void markIsInBigCyc() {
-		inBigCyc = new int[N];
+		Arrays.fill(inBigCyc, 0);
 		for(int[] bigCyc : bigCycList) {
 			for(int v : bigCyc) {
 				inBigCyc[v]++;
+			}
+		}
+	}
+
+	//checks that inBigCyc is currently accurate. If it's not, errors.
+	private static void verifyInBigCyc() {
+		int[] myBigCyc = new int[N];
+		for(int[] bigCyc : bigCycList) {
+			for(int v : bigCyc) {
+				myBigCyc[v]++;
+			}
+		}
+		for(int i=0; i<N; i++) {
+			if(myBigCyc[i] != inBigCyc[i]) {
+				throw new RuntimeException("i="+i+": "+myBigCyc[i]+" != "+inBigCyc[i]);
 			}
 		}
 	}

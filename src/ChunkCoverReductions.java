@@ -70,7 +70,9 @@ public class ChunkCoverReductions {
 		}
 		
 		//populate the array isInBigCyc
+		inBigCyc = new int[N];
 		markIsInBigCyc();
+		inChunk = new boolean[N];
 		markIsInChunk();
 		
 		if(Main_Load.VERBOSE){
@@ -83,6 +85,8 @@ public class ChunkCoverReductions {
 			checkConsistency();
 			progress = false;
 			for(int v=0; v<N; v++) {
+				shrinkCyclesNewIncludes();
+				markIsInBigCyc();
 				
 				int deg = neighbors[v].size();
 				//deg 0 --> it's not even there
@@ -268,15 +272,6 @@ public class ChunkCoverReductions {
 							u = oB;
 						}
 						if(u != -1) {
-							if(inBigCyc[u] > 0 || inChunk[u]) {
-								//TODO can still be reduced, this just needs to take any cycles
-								//that u has and replicate them, replacing u once with each of
-								//the other two neighbors of v. And in the chunks, make copies
-								//of u's in- and out-edges at the other two neighbors of v.
-//								throw new RuntimeException("Because "+inBigCyc[u]+" and "+inChunk[u]);
-								continue;
-							}
-							
 							//a funnel exists, oC - v - {oA, oB}
 							HashSet<Integer> Nv = new HashSet<Integer>(neighbors[v]);
 							HashSet<Integer> Nu = new HashSet<Integer>(neighbors[u]);
@@ -295,6 +290,11 @@ public class ChunkCoverReductions {
 							clearVertex(v);
 							Nv_sub_Nu.remove(u);
 							Nu_sub_Nv.remove(v);
+
+							if(inBigCyc[u] > 0 || inChunk[u]) {
+								replaceAlternativeInChunks(u, Nv_sub_Nu);
+							}
+							
 							//add Nu cap Nv to the vertex cover
 							includes.addAll(Nu_cap_Nv);
 							for(int cap : Nu_cap_Nv)
@@ -453,14 +453,6 @@ public class ChunkCoverReductions {
 					//Great!
 					int nv = neighbors[v].get(lowDegNvi);
 					
-					if(inBigCyc[nv] > 0 || inChunk[nv]) {
-						//TODO can still be reduced, this just needs to take any cycles
-						//that nv has and replicate them, replacing nv once with each of
-						//the other neighbors of v. And in the chunks, make copies
-						//of nv's in- and out-edges at the other neighbors of v.
-						continue;
-					}
-					
 					if(LOG) System.out.println("k-funnel at "+v+" and "+nv);
 					resolveFunnel(v, nv);
 					progress = true;
@@ -482,14 +474,6 @@ public class ChunkCoverReductions {
 					//great, there's exactly one edge missing, which means that it's a funnel with either one.
 					int nv = neighbors[v].get(lowishDegNvi);
 
-					if(inBigCyc[nv] > 0 || inChunk[nv]) {
-						//TODO can still be reduced, this just needs to take any cycles
-						//that nv has and replicate them, replacing nv once with each of
-						//the other neighbors of v. And in the chunks, make copies
-						//of nv's in- and out-edges at the other neighbors of v.
-						continue;
-					}
-					
 					if(LOG) System.out.println("k-funnel at "+v+" and "+nv);
 					resolveFunnel(v, nv);
 					progress = true;
@@ -521,6 +505,10 @@ public class ChunkCoverReductions {
 		clearVertex(v);
 		Nv_sub_Nu.remove(u);
 		Nu_sub_Nv.remove(v);
+
+		if(inBigCyc[u] > 0 || inChunk[u]) {
+			replaceAlternativeInChunks(u, Nv_sub_Nu);
+		}
 		//add Nu cap Nv to the vertex cover
 		includes.addAll(Nu_cap_Nv);
 		for(int cap : Nu_cap_Nv)
@@ -606,51 +594,116 @@ public class ChunkCoverReductions {
 		return changed;
 	}
 	
-//	static void replaceAlternativeInChunks(int u, HashSet<Integer> replicators) {
-//		//TODO
-//		for(Iterator<int[]> iter = bigCycList.iterator();
-//				iter.hasNext();) {
-//			int[] cyc = iter.next();
-//			boolean has = false;
-//			for(int a : cyc) {
-//				if(a == v) {
-//					has = true; break; 
-//				}
-//			}
-//			if(!has)
-//				continue;
-//			//found it.
-//			if(LOG) System.out.println("Found isolated cycle "+Arrays.toString(cyc)+", v="+v);
-//			if(cyc.length <= 2) {
-//				throw new RuntimeException("How'd we get a small 'big' cycle of size "+cyc.length);
-//			} else if(cyc.length == 3) {
-//				//drop v from the 3-cycle, add an edge between the other two.
-//				int vo_1 = cyc[0];
-//				int vo_2 = cyc[1];
-//				if(vo_1 == v)
-//					vo_1 = cyc[2];
-//				else if(vo_2 == v)
-//					vo_2 = cyc[2];
-//				iter.remove();
-//				neighbors[vo_1].add(vo_2);
-//				neighbors[vo_2].add(vo_1);
-//				changed = true;
-//			} else {
-//				//strip it
-//				int[] newCyc = new int[cyc.length-1];
-//				int dest = 0;
-//				for(int a : cyc) {
-//					if(a != v)
-//						newCyc[dest++] = a;
-//				}
-//				iter.remove();
-//				bigCycList.add(newCyc);
-//				changed = true;
-//				//have to defer adding in the new cycle until iterator is done
-//				break;
-//			}
-//		}
-//	}
+	private static void replaceAlternativeInChunks(int u, HashSet<Integer> replicators) {
+		//add in any cycles missing from
+		if(inBigCyc[u] > 0) {
+			ArrayList<int[]> replacedCycles = new ArrayList<>();
+			
+			for(Iterator<int[]> iter = bigCycList.iterator();
+					iter.hasNext();) {
+				int[] cyc = iter.next();
+				boolean has = false;
+				for(int a : cyc) {
+					if(a == u) {
+						has = true; break; 
+					}
+				}
+				if(!has)
+					continue;
+				
+				//If the cycle contains any r from the replicators, then we actually actually just
+				//remove u from the cycle and call it a day. Because we create a new cycle where
+				//we replace u by r, which is already in the cycle; this cycle will be one smaller
+				//than all the others, and so dominate all the others. Additionally, if the cycle
+				//is size 3, this becomes an edge.
+				boolean cycHitsReps = false;
+				for(int c : cyc) {
+					if(replicators.contains(c)) {
+						cycHitsReps = true;
+						break;
+					}
+				}
+				if(cycHitsReps) {
+					//Don't need to replicate, just reduce.
+					if(cyc.length == 3) {
+						//drop u from the 3-cycle, add an edge between the other two.
+						int vo_1 = cyc[0];
+						int vo_2 = cyc[1];
+						if(vo_1 == u)
+							vo_1 = cyc[2];
+						else if(vo_2 == u)
+							vo_2 = cyc[2];
+						iter.remove();
+						neighbors[vo_1].add(vo_2);
+						neighbors[vo_2].add(vo_1);
+					} else {
+						//just shrink and turn it into a smaller one
+						int[] newCyc = new int[cyc.length-1];
+						int dest = 0;
+						for(int a : cyc) {
+							if(a != u)
+								newCyc[dest++] = a;
+						}
+						iter.remove();
+						replacedCycles.add(newCyc);
+					}
+					continue;
+				}
+				
+				for(int rep : replicators) {
+					int[] newCyc = new int[cyc.length];
+					int dest = 0;
+					for(int c : cyc) {
+						int val = (c==u) ? rep : c;
+						newCyc[dest++] = val;
+						inBigCyc[val]++;
+					}
+					replacedCycles.add(newCyc);
+				}
+				for(int c : cyc) {
+					inBigCyc[c]--;
+				}
+				iter.remove();
+			}
+			bigCycList.addAll(replacedCycles);
+		}
+		
+		if(inChunk[u]) {
+			int[] replicatorArr = replicators.stream().mapToInt(x -> x).toArray();
+			for(GraphChunk chunk : chunks) {
+				int ui = chunk.getPremapping(u);
+				if(ui == -1)
+					continue;
+				int[] inds = chunk.addToMapping(replicatorArr);
+				HashSet<Integer> origElist = chunk.gInner.eList[ui];
+				HashSet<Integer> origBackElist = chunk.gInner.backEList[ui];
+				for(int ind : inds) {
+					chunk.gInner.eList[ind].addAll(origElist);
+					chunk.gInner.backEList[ind].addAll(origBackElist);
+				}
+				//update degrees
+				for(int ind : inds) {
+					chunk.gInner.outDeg[ind] = chunk.gInner.eList[ind].size();
+					chunk.gInner.inDeg[ind] = chunk.gInner.backEList[ind].size();
+				}
+				for(int ind : origElist) {
+					chunk.gInner.outDeg[ind] = chunk.gInner.eList[ind].size();
+					chunk.gInner.inDeg[ind] = chunk.gInner.backEList[ind].size();
+				}
+				for(int ind : origBackElist) {
+					chunk.gInner.outDeg[ind] = chunk.gInner.eList[ind].size();
+					chunk.gInner.inDeg[ind] = chunk.gInner.backEList[ind].size();
+				}
+				//drop u
+				chunk.gInner.clearVertex(ui);
+				chunk.gInner.checkConsistency();
+			}
+			for(int rep : replicators) {
+				inChunk[rep] = true;
+			}
+			inChunk[u] = false;
+		}
+	}
 
 	static void verify(boolean[] solution, ArrayList<int[]> edgeList, LinkedList<int[]> bigCycList) {
 		if(!VERIFY)
@@ -678,6 +731,9 @@ public class ChunkCoverReductions {
 	
 	private static boolean shrinkCyclesNewIncludes() {
 		int nI = includes.size() - lastIncludesUpdate;
+		if(nI == 0)
+			return false;
+		
 		int[] newIncludes = new int[nI];
 		for(int i=0 ; i<nI; i++) {
 			newIncludes[i] = includes.get(lastIncludesUpdate + i);
@@ -788,7 +844,7 @@ public class ChunkCoverReductions {
 	}
 	
 	static void markIsInBigCyc() {
-		inBigCyc = new int[N];
+		Arrays.fill(inBigCyc, 0);
 		for(int[] bigCyc : bigCycList) {
 			for(int v : bigCyc) {
 				inBigCyc[v]++;
@@ -797,7 +853,7 @@ public class ChunkCoverReductions {
 	}
 	
 	static void markIsInChunk() {
-		inChunk = new boolean[N];
+		Arrays.fill(inChunk, false);
 		for(GraphChunk chunk : chunks) {
 			int cN = chunk.gInner.N;
 			for(int vi = 0; vi < cN; vi++) {
