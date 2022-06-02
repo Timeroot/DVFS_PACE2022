@@ -358,7 +358,6 @@ public class VertexCoverReductions {
 			MinimumCoverInfo mci = new MinimumCoverInfo(N, pairList, null, null, null);
 			boolean[] res = new ILP_MinimumCover().solve(mci);
 			return res;
-//			throw new RuntimeException("We don't actually solve the core yet");
 		} else {
 			//nothing in the graph, return empty
 			boolean[] res = new boolean[N];

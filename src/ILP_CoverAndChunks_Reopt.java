@@ -1,6 +1,7 @@
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.Random;
 
 import JNA_SCIP.JSCIP;
 import JNA_SCIP.SCIP_CONS;
@@ -35,19 +36,14 @@ public class ILP_CoverAndChunks_Reopt {
 	
 	int time_limit = 3000;
 	int node_limit = 1000;
+	
+	static final int extra_random_init = 50;
+	static final int extra_random_loop = 50;
 
 	public ArrayList<Integer> solve(MinimumCoverInfo mci) {
 		
 		if(Main_Load.TESTING) {
 			System.out.println("Solving with ILP_CoverAndChunks_Reopt");
-//			for(int[] pair : mci.pairList)
-//				System.out.println(Arrays.toString(pair));
-//			for(int[] cyc : mci.bigCycleList)
-//				System.out.println(Arrays.toString(cyc));
-//			for(GraphChunk chunk : mci.chunks) {
-//				System.out.println(chunk.gInner.dumpS());
-//				System.out.println(" mapped with "+Arrays.toString(chunk.mapping));
-//			}
 		}
 		
 		this.N = mci.N;
@@ -55,10 +51,14 @@ public class ILP_CoverAndChunks_Reopt {
 		cycleList = new ArrayList<int[]>();
 		cycleList.addAll(mci.pairList);
 		cycleList.addAll(mci.bigCycleList);
+		dig_rand = new Random(1001);
 
 		//add starting cycles for the chunks
 		for(GraphChunk ch : mci.chunks) {
 			digForCycles(ch, new ArrayList<>(), mode);
+			for(int i=0; i<extra_random_init; i++) {
+				digForCycles(ch, new ArrayList<>(), GenCyclesMode.RANDOM_EXTRA);
+			}
 		}
 		
 		cycle_i = 0;
@@ -99,6 +99,9 @@ public class ILP_CoverAndChunks_Reopt {
 			
 			for(GraphChunk ch : mci.chunks) {
 				isAcyc = digForCycles(ch, trySol, mode) & isAcyc;
+				for(int i=0; i<extra_random_loop; i++) {
+					digForCycles(ch, trySol, GenCyclesMode.RANDOM_EXTRA);
+				}
 			}
 			
 			if(isAcyc) {
@@ -121,6 +124,9 @@ public class ILP_CoverAndChunks_Reopt {
 					isAcyc = false;
 					continue;
 				}
+			} else {
+				//experiment: try checking ALL the solutions!
+//				SCIP_SOL[] solList = JSCIP.getSols();
 			}
 		}
 
@@ -198,7 +204,9 @@ public class ILP_CoverAndChunks_Reopt {
 		VERTEX_DFS_GENEROUS,
 		EDGE_DFS,
 		EDGE_DFS_GENEROUS,
+		RANDOM_EXTRA,
 	};
+	Random dig_rand;
 	
 	//returns true if no cycles were found
 	boolean digForCycles(GraphChunk chunk, ArrayList<Integer> trySolList, GenCyclesMode mode) {
@@ -216,9 +224,10 @@ public class ILP_CoverAndChunks_Reopt {
 		}
 		
 		int cyclesAdded = 0;
+		Random rand = (mode == GenCyclesMode.RANDOM_EXTRA) ? dig_rand : null;
 		
 		ArrayDeque<Integer> cycQ;
-		while((cycQ = g.findCycleDFS()) != null) {
+		while((cycQ = g.findCycleDFS(rand)) != null) {
 			//remove that cycle from the graph, hope we get another one.
 			if(mode == GenCyclesMode.VERTEX_DFS) {
 				for(int i : cycQ)
@@ -227,12 +236,26 @@ public class ILP_CoverAndChunks_Reopt {
 				g.clearVertex(cycQ.peekFirst());
 			} else if(mode == GenCyclesMode.EDGE_DFS_GENEROUS) {
 				g.clearEdge(cycQ.peekLast(), cycQ.peekFirst());
-			} 
+			}
 			
 			//put it in the cycle list
 			int[] cyc = cycQ.stream().mapToInt(i -> chunk.mapping[i]).toArray();
 			cycleList.add(cyc);
 			cyclesAdded++;
+			
+			if(mode == GenCyclesMode.RANDOM_EXTRA) {
+				int cycLen = cyc.length;
+				if(cyc.length > 2) {
+					int randI = dig_rand.nextInt(cycLen-2);
+					for(int p=0; p<randI; p++) {
+						cycQ.removeFirst();
+					}
+					for(int p=0; p<cycLen-2-randI; p++) {
+						cycQ.removeLast();
+					}
+				}
+				g.clearEdge(cycQ.peekFirst(), cycQ.peekLast());
+			}
 		}
 		
 		if(Main_Load.TESTING) System.out.println("Dig gave "+cyclesAdded+" new cycles.");

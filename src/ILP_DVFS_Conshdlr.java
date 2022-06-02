@@ -417,7 +417,7 @@ public class ILP_DVFS_Conshdlr {
 		int cyclesAdded = 0;
 		
 		ArrayDeque<Integer> cycQ;
-		while((cycQ = g.findCycleDFS()) != null) {
+		while((cycQ = g.findCycleDFS(null)) != null) {
 			//put it in the cycle list
 			int[] cyc = cycQ.stream().mapToInt(i -> i).toArray();
 			cycleList.add(cyc);

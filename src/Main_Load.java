@@ -241,14 +241,14 @@ public class Main_Load {
 				HEURISTIC ? "./heuristic_public/h_" : "./exact_public/e_" ;
 		
 		int done=0;
-		//#105 has a large chunk of size 744.
-		//#121 has a large chunk of size 525.
-		//#111, #113 are slow VC problems (136sec, 532sec)
-		for(int i=167; i<=167; i+=2) {
+		//#133 has a large chunk of {N=1650,E=5134}.
+		//#157 is a tricky cycle cover problem -- just barely at time limit.
+		//#151 is a pretty hard cycle cover problem.
+		for(int i=127; i<=127; i+=2) {
 			long t0 = System.currentTimeMillis();
 			
 			String problem = prefix+"000".substring(Integer.toString(i).length())+i;
-			System.out.println("Running on "+problem);
+			System.out.println("Running on "+problem+", OPTIL #"+(i-1)/2);
 			String inName = problem;
 			String outName = problem+".out";
 			BufferedReader reader = new BufferedReader(new FileReader(inName));

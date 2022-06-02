@@ -1,5 +1,6 @@
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.Iterator;
 
@@ -68,6 +69,59 @@ public class GraphChunk {
 	}
 	public static GraphChunk wrap(Graph g) {
 		return new GraphChunk(g);
+	}
+	
+	//Find the vi that maps to v outside.
+	//Returns -1 if not in the chunk.
+	public int getPremapping(int v) {
+		for(int i=0; i<mapping.length; i++) {
+			if(mapping[i] == v)
+				return i;
+		}
+		return -1;
+	}
+	
+	//adds some vertices into the mapping, returns their premapped values.
+	//will sort vs, and the returned new indices will map to the reordered order.
+	public int[] addToMapping(int[] vs) {
+		Arrays.sort(vs);
+		int nvs = vs.length;
+		int[] ret = new int[nvs];
+		boolean[] alreadyIn = new boolean[nvs];
+		
+		//Check which vs (if any) are already in the mapping, and the needed growth.
+		int newSize = mapping.length + nvs;
+		for(int vi=0; vi<mapping.length; vi++) {
+			int v = mapping[vi];
+			int loc = Arrays.binarySearch(vs, vi);
+			if(loc >= 0) {
+				alreadyIn[loc] = true;
+				ret[loc] = vi;
+				newSize--;
+			}
+		}
+		int growth = newSize - mapping.length;
+		
+		if(growth == 0) {
+			return ret;
+		}
+		
+		//Expand the graph
+		gInner.expandBy(growth);
+		
+		//Build the new mapping
+		int[] newMapping = Arrays.copyOf(mapping, newSize);
+		int dest = mapping.length;
+		for(int vi=0; vi<nvs; vi++) {
+			if(alreadyIn[vi])
+				continue;
+			int l = dest++;
+			newMapping[l] = vs[vi];
+			ret[vi] = l;
+		}
+		mapping = newMapping;
+		
+		return ret;
 	}
 	
 	public static GraphChunk nonzeroVerts(Graph g, boolean destructive) {

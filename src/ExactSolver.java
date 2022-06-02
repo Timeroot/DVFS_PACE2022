@@ -67,7 +67,7 @@ public class ExactSolver {
 			Graph check = Graph.fromReducedGraph(rg_scc);
 			for(int v : res)
 				check.clearVertex(v);
-			ArrayDeque<Integer> cyc = check.findCycleDFS();
+			ArrayDeque<Integer> cyc = check.findCycleDFS(null);
 			if(cyc != null) {
 				//BAD SOLUTION!
 				System.out.println(cyc);

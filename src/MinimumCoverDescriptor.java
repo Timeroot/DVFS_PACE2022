@@ -188,9 +188,10 @@ public class MinimumCoverDescriptor {
 		} else {
 			if(Main_Load.TESTING)
 				System.out.println("HARD: Not minimum cover!");
-			MinimumCoverInfo mci = new MinimumCoverInfo(g.N, pairList, new ArrayList<int[]>(bigCycleList), rem_chunks, null);
-			ArrayList<Integer> sol = new ILP_CoverAndChunks_Reopt().solve(mci);
-			return sol;
+//			MinimumCoverInfo mci = new MinimumCoverInfo(g.N, pairList, new ArrayList<int[]>(bigCycleList), rem_chunks, null);
+//			ArrayList<Integer> sol = new ILP_CoverAndChunks_Reopt().solve(mci);
+//			return sol;
+			return ChunkCoverReductions.solve(pairList, bigCycleList, rem_chunks, g.N);
 		}
 	}
 	
@@ -246,7 +247,7 @@ public class MinimumCoverDescriptor {
 	void dumpK2Graph() {
 		System.out.print("{");
 		for(int[] pair : pairList) {
-			System.out.print("{"+(1+pair[0])+","+(1+pair[1])+"},");
+			System.out.print("{"+(pair[0])+","+(pair[1])+"},");
 			if(Math.random() < 0.1)
 				System.out.println();
 		}
@@ -453,7 +454,7 @@ public class MinimumCoverDescriptor {
 	}
 
 	//Notes SCCs and removes edges between them
-	int stripSCC(Graph g) {
+	static int stripSCC(Graph g) {
 		ReducedGraph rg = ReducedGraph.wrap(g, true);
 		SCC scc = new SCC();
 		boolean sccSplit = scc.doSCC(rg);
@@ -897,7 +898,7 @@ public class MinimumCoverDescriptor {
 			}
 		}
 		
-		if(!alwaysNeededExtraEdge) {
+		if(!alwaysNeededExtraEdge && !chunk_orig.eList[splitU].contains(splitV)) {
 			chunk_orig.addEdge(splitU, splitV);
 		}
 	}
