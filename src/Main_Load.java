@@ -227,7 +227,7 @@ public class Main_Load {
 		2,674,631,276,450,1917,547,788,364,1137,510,452,273,575,715,2079,277,2179,2679,400,
 		2509,521,2837,2666,2043,2086,2628,1948,1955,214,554,2267,3709,513,2092,675,4420,4069,
 		5292,4906,4887,745,6254,6253,4928,755,10616,5198,9797,4752,21900,10159,58,8888,12710,
-		1741,915,24084,24091,21755,73,20628,22898
+		1741,915,24084,24091,21755,73,20628,22898,1469,20630,19518,1314
 	};
 	static int check_index = -1;
 	
@@ -239,6 +239,7 @@ public class Main_Load {
 		long maxT = -1;
 		String prefix =
 				HEURISTIC ? "./heuristic_public/h_" : "./exact_public/e_" ;
+//		String prefix = "./exact_other/e_";
 		
 		int done=0;
 		//#133 has a large chunk of {N=1650,E=5134}.
@@ -255,7 +256,7 @@ public class Main_Load {
 			PrintStream fileout = new PrintStream(new FileOutputStream(outName));
 			
 			check_index = (i-1)/2;
-			if(check_index >= check_answers.length)
+			if(i%2 == 0 || check_index >= check_answers.length)
 				check_index = -1;
 			
 			Main_Load ml;

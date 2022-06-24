@@ -274,6 +274,9 @@ public class ChunkCoverReductions {
 							u = oB;
 						}
 						if(u != -1) {
+							if(inChunk[u])
+								continue;
+							
 							//a funnel exists, oC - v - {oA, oB}
 							HashSet<Integer> Nv = new HashSet<Integer>(neighbors[v]);
 							HashSet<Integer> Nu = new HashSet<Integer>(neighbors[u]);
@@ -457,6 +460,8 @@ public class ChunkCoverReductions {
 				if(totalDeg == expectedTotalDeg) {
 					//Great!
 					int nv = neighbors[v].get(lowDegNvi);
+					if(inChunk[nv])
+						continue vLoop;
 					
 					if(LOG) System.out.println("k-funnel at "+v+" and "+nv);
 					resolveFunnel(v, nv);
@@ -478,6 +483,8 @@ public class ChunkCoverReductions {
 				} else {
 					//great, there's exactly one edge missing, which means that it's a funnel with either one.
 					int nv = neighbors[v].get(lowishDegNvi);
+					if(inChunk[nv])
+						continue vLoop;
 
 					if(LOG) System.out.println("k-funnel at "+v+" and "+nv);
 					resolveFunnel(v, nv);
