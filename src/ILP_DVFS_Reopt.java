@@ -2,13 +2,7 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.HashSet;
 
-import JNA_SCIP.JSCIP;
-import JNA_SCIP.SCIP_CONS;
-import JNA_SCIP.SCIP_PARAMEMPHASIS;
-import JNA_SCIP.SCIP_PARAMSETTING;
-import JNA_SCIP.SCIP_SOL;
-import JNA_SCIP.SCIP_STATUS;
-import JNA_SCIP.SCIP_VAR;
+import JNA_SCIP.*;
 
 import static JNA_SCIP.SCIP_PARAMSETTING.*;
 import static JNA_SCIP.SCIP_PARAMEMPHASIS.*;
@@ -38,8 +32,8 @@ public class ILP_DVFS_Reopt {
 	static final boolean ECHO_SETTINGS = true;//print configurations to STDOUT
 	
 	//How strong to presolve?
-	static final SCIP_PARAMSETTING presolve_emph = SCIP_PARAMSETTING_AGGRESSIVE;
-	static final SCIP_PARAMEMPHASIS solve_emph = SCIP_PARAMEMPHASIS_OPTIMALITY;
+	static final SCIP_PARAMSETTING presolve_emph = AGGRESSIVE;
+	static final SCIP_PARAMEMPHASIS solve_emph = OPTIMALITY;
 	
 	int time_limit = 3000;
 	int node_limit = 1000;
@@ -52,16 +46,16 @@ public class ILP_DVFS_Reopt {
 		cycle_i = 0;
 
 		//SCIP initialization
-		JSCIP.create();
+		SCIP scip = SCIP.create();
 		if(ECHO)
-			JSCIP.printVersion(null);
-		JSCIP.includeDefaultPlugins();
-		JSCIP.createProbBasic("prob");
+			scip.printVersion(null);
+		scip.includeDefaultPlugins();
+		scip.createProbBasic("prob");
 		if(!ECHO)
-			JSCIP.setIntParam("display/verblevel", 0);
+			scip.setIntParam("display/verblevel", 0);
 
-		JSCIP.setPresolving(presolve_emph, !(ECHO_SETTINGS && ECHO));
-		JSCIP.setEmphasis(solve_emph, !(ECHO_SETTINGS && ECHO));
+		scip.setPresolving(presolve_emph, !(ECHO_SETTINGS && ECHO));
+		scip.setEmphasis(solve_emph, !(ECHO_SETTINGS && ECHO));
 		
 //		JSCIP.enableReoptimization(true);
 //		JSCIP.setBoolParam("reoptimization/enable", true);
@@ -70,8 +64,8 @@ public class ILP_DVFS_Reopt {
 		vars = new SCIP_VAR[N];
 		for(int i=0; i<N; i++) {
 			//Each variable has objective weight of 1.0
-			vars[i] = JSCIP.createVarBasic("v"+i, 0, 1, 1.0, SCIP_VARTYPE_BINARY);
-			JSCIP.addVar(vars[i]);
+			vars[i] = scip.createVarBasic("v"+i, 0, 1, 1.0, BINARY);
+			scip.addVar(vars[i]);
 		}
 		
 		//first get a few cycle using the base graph (no tentative solution).
@@ -86,19 +80,19 @@ public class ILP_DVFS_Reopt {
 		if(Main_Load.TESTING) System.out.println("Operating in mode "+mode);
 		
 		while(!isAcyc) {
-			SCIP_STATUS scip_status = getSCIPSolution(trySol);
+			SCIP_STATUS scip_status = getSCIPSolution(scip, trySol);
 			isAcyc = digForCycles(g, trySol, mode);
 			
 			if(isAcyc) {
-				if(scip_status == SCIP_STATUS_OPTIMAL) {
+				if(scip_status == OPTIMAL) {
 					if(Main_Load.TESTING) System.out.println("Exact answer found");
 					break;
-				} else if(scip_status == SCIP_STATUS_NODELIMIT) {
+				} else if(scip_status == NODELIMIT) {
 					node_limit *= 10;
 					if(Main_Load.TESTING) System.out.println("Up node_limit to "+node_limit);
 					isAcyc = false;
 					continue;
-				} else if(scip_status == SCIP_STATUS_TIMELIMIT) {
+				} else if(scip_status == TIMELIMIT) {
 					time_limit = 100 + time_limit;
 					if(Main_Load.TESTING) System.out.println("Up time_limit to "+time_limit);
 					if(time_limit > 3000) {
@@ -114,45 +108,45 @@ public class ILP_DVFS_Reopt {
 
 		//SCIP cleanup
 		for(int i=0; i<N; i++) {
-			JSCIP.releaseVar(vars[i]);
+			scip.releaseVar(vars[i]);
 		}
-		JSCIP.free();
+		scip.free();
 		
 		return trySol;
 	}
 
-	SCIP_STATUS getSCIPSolution(ArrayList<Integer> res) {
-		double inf = JSCIP.infinity();
+	SCIP_STATUS getSCIPSolution(SCIP scip, ArrayList<Integer> res) {
+		double inf = scip.infinity();
 		
 		//Constraints
 		//Each cycle has at least one variable true
 		for( ; cycle_i < cycleList.size(); cycle_i++ ) {
 			int[] arr = cycleList.get(cycle_i);
-			SCIP_CONS cons = JSCIP.createConsBasicLinear("cons"+cycle_i, null, null, 1, inf);
+			SCIP_CONS cons = scip.createConsBasicLinear("cons"+cycle_i, null, null, 1, inf);
 			
 			for(int v : arr) {
-				JSCIP.addCoefLinear(cons, vars[v], 1.0);
+				scip.addCoefLinear(cons, vars[v], 1.0);
 			}
-			JSCIP.addCons(cons);
-			JSCIP.releaseCons(cons);
+			scip.addCons(cons);
+			scip.releaseCons(cons);
 		}
 		
-//		JSCIP.setLongintParam("limits/nodes", node_limit);
-//		JSCIP.setRealParam("limits/time", time_limit);
-		JSCIP.setIntParam("reoptimization/maxsavednodes", node_limit);
-//		JSCIP.setRealParam("reoptimization/delay", time_limit);
+//		scip.setLongintParam("limits/nodes", node_limit);
+//		scip.setRealParam("limits/time", time_limit);
+		scip.setIntParam("reoptimization/maxsavednodes", node_limit);
+//		scip.setRealParam("reoptimization/delay", time_limit);
 		
-//		JSCIP.presolve();
-		JSCIP.solve();
+//		scip.presolve();
+		scip.solve();
 		
-		SCIP_SOL sol = JSCIP.getBestSol();
+		SCIP_SOL sol = scip.getBestSol();
 		
-		SCIP_STATUS scip_status = JSCIP.getStatus();
+		SCIP_STATUS scip_status = scip.getStatus();
 			
 		//Save the variables
 		res.clear();
 		for(int i=0; i<N; i++) {
-			double val = JSCIP.getSolVal(sol, vars[i]);
+			double val = scip.getSolVal(sol, vars[i]);
 			if(val > 0.5) {
 				res.add(i);
 			}
@@ -162,12 +156,12 @@ public class ILP_DVFS_Reopt {
 			System.out.println("SCIP solved with "+cycleList.size()+" cycles and gave "+res.size()+" vertices. "+scip_status);
 	
 		if(Main_Load.TESTING)
-			System.out.println("Stage = "+JSCIP.getStage());
-//		JSCIP.freeReoptSolve();
-//		JSCIP.freeSolve();
-		JSCIP.freeTransform();
+			System.out.println("Stage = "+scip.getStage());
+//		scip.freeReoptSolve();
+//		scip.freeSolve();
+		scip.freeTransform();
 		if(Main_Load.TESTING)
-			System.out.println("Stage = "+JSCIP.getStage());
+			System.out.println("Stage = "+scip.getStage());
 		
 		return scip_status;
 	}

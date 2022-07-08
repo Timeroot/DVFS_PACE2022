@@ -1,0 +1,3 @@
+[submodule "JNA_SCIP"]
+	path = JNA_SCIP
+	url = https://github.com/Timeroot/JNA_SCIP

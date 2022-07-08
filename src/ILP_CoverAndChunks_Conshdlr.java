@@ -1,18 +1,13 @@
 import java.util.ArrayDeque;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
 import java.util.HashSet;
-
-import com.sun.jna.ptr.IntByReference;
 
 import JNA_SCIP.*;
 
-import static JNA_SCIP.SCIP_LOCKTYPE.SCIP_LOCKTYPE_MODEL;
+import static JNA_SCIP.SCIP_LOCKTYPE.MODEL;
 import static JNA_SCIP.SCIP_PARAMEMPHASIS.*;
 import static JNA_SCIP.SCIP_PARAMSETTING.*;
 import static JNA_SCIP.SCIP_RETCODE.*;
-import static JNA_SCIP.SCIP_STATUS.*;
 import static JNA_SCIP.SCIP_RESULT.*;
 import static JNA_SCIP.SCIP_VARTYPE.*;
 
@@ -33,8 +28,8 @@ public class ILP_CoverAndChunks_Conshdlr {
 	static final boolean ECHO_SETTINGS = false;//print configurations to STDOUT
 	
 	//How strong to presolve?
-	static final SCIP_PARAMSETTING presolve_emph = SCIP_PARAMSETTING_AGGRESSIVE;
-	static final SCIP_PARAMEMPHASIS solve_emph = SCIP_PARAMEMPHASIS_OPTIMALITY;
+	static final SCIP_PARAMSETTING presolve_emph = AGGRESSIVE;
+	static final SCIP_PARAMEMPHASIS solve_emph = OPTIMALITY;
 	
 	//Which types of constraints to add for initial set (K2's and K3's)
 	static final boolean INIT_USE_LINEAR = true;
@@ -90,67 +85,67 @@ public class ILP_CoverAndChunks_Conshdlr {
 		this.N = mci.N;
 		
 		//SCIP initialization
-		JSCIP.create();
-		this.inf = JSCIP.infinity();
+		SCIP scip = SCIP.create();
+		this.inf = scip.infinity();
 		if(ECHO)
-			JSCIP.printVersion(null);
-		JSCIP.includeDefaultPlugins();
-		JSCIP.createProbBasic("prob");
+			scip.printVersion(null);
+		scip.includeDefaultPlugins();
+		scip.createProbBasic("prob");
 		if(!ECHO)
-			JSCIP.setIntParam("display/verblevel", 0);
+			scip.setIntParam("display/verblevel", 0);
 
-		JSCIP.setPresolving(presolve_emph, !(ECHO_SETTINGS && ECHO));
-		JSCIP.setEmphasis(solve_emph, !(ECHO_SETTINGS && ECHO));
+		scip.setPresolving(presolve_emph, !(ECHO_SETTINGS && ECHO));
+		scip.setEmphasis(solve_emph, !(ECHO_SETTINGS && ECHO));
 		
-		JSCIP.setBoolParam("misc/improvingsols", true);
+		scip.setBoolParam("misc/improvingsols", true);
 		
 		//Allocate variables
 		vars = new SCIP_VAR[N];
 		for(int i=0; i<N; i++) {
 			//Each variable has objective weight of 1.0
-			vars[i] = JSCIP.createVarBasic("v"+i, 0, 1, 1.0, SCIP_VARTYPE_BINARY);
-			JSCIP.addVar(vars[i]);
+			vars[i] = scip.createVarBasic("v"+i, 0, 1, 1.0, BINARY);
+			scip.addVar(vars[i]);
 		}
 		
 		ArrayList<int[]> cycleList = mci.pairList;
 		for(int[] cycle : cycleList) {
 			if(INIT_USE_LINEAR)
-				addLinearCons(cycle);
+				addLinearCons(scip, cycle);
 			if(INIT_USE_SETPPC)
-				addSetppcCons(cycle);
+				addSetppcCons(scip, cycle);
 			if(INIT_USE_LOGICOR)
-				addLogicorCons(cycle);
+				addLogicorCons(scip, cycle);
 		}
 		cycleList = mci.bigCycleList;
 		for(int[] cycle : cycleList) {
 			if(INIT_USE_LINEAR)
-				addLinearCons(cycle);
+				addLinearCons(scip, cycle);
 			if(INIT_USE_SETPPC)
-				addSetppcCons(cycle);
+				addSetppcCons(scip, cycle);
 			if(INIT_USE_LOGICOR)
-				addLogicorCons(cycle);
+				addLogicorCons(scip, cycle);
 		}
 
 		chunks = mci.chunks;
 		inChunk = mci.inChunk;
 		
-		AcycConshdlr conshdlr = new AcycConshdlr();
+		AcycConshdlr conshdlr = new AcycConshdlr(scip);
 
 //		SCIP_DECL_HEUREXEC heurexec =  this::heurexec;
 //		scip_heur = JSCIP.includeHeurBasic("javaheur", "java-side heuristic", (byte)'j',
 //				HEUR_PRIORITY, HEUR_FREQ, HEUR_FREQOFS, HEUR_MAXDEPTH, HEUR_TIMING,
 //				false, heurexec, null);
 		
-		JSCIP.presolve();
-		JSCIP.solve();
+		scip.presolve();
+		scip.solve();
 		
-		SCIP_STATUS scip_status = JSCIP.getStatus();
+		SCIP_STATUS scip_status = scip.getStatus();
 		if(Main_Load.TESTING)
 			System.out.println("Final status "+scip_status);
 		
 		//Save the variables
-		SCIP_SOL sol = JSCIP.getBestSol();
-		ArrayList<Integer> res = extractSol(sol);
+		SCIP_SOL sol = scip.getBestSol();
+		ArrayList<Integer> res = extractSol(scip, sol);
 		
 		if(Main_Load.TESTING) {	
 			System.out.println(" -- Conshdlr times -- ");
@@ -169,18 +164,18 @@ public class ILP_CoverAndChunks_Conshdlr {
 		
 		//SCIP cleanup
 		for(int i=0; i<N; i++) {
-			JSCIP.releaseVar(vars[i]);
+			scip.releaseVar(vars[i]);
 		}
-		JSCIP.free();
+		scip.free();
 		
 		return res;
 	}
 	
-	ArrayList<Integer> extractSol(SCIP_SOL sol){
+	ArrayList<Integer> extractSol(SCIP scip, SCIP_SOL sol){
 		ArrayList<Integer> res = new ArrayList<>();
 		res.clear();		
 		for(int i=0; i<N; i++) {
-			double val = JSCIP.getSolVal(sol, vars[i]);
+			double val = scip.getSolVal(sol, vars[i]);
 			if(val > 0.5) {
 				res.add(i);
 			}
@@ -189,21 +184,24 @@ public class ILP_CoverAndChunks_Conshdlr {
 	}
 
 	//Store no constraint data
-	class VoidData extends ConstraintData<VoidData>{
+	class VoidData extends ConstraintData<VoidData,AcycConshdlr>{
 		public VoidData copy() {return new VoidData();}
 		public void delete() {}
+		public VoidData transform(SCIP scip) {return new VoidData();}
+		public void delete(SCIP scip) {}
+		public void exit(SCIP scip) {}
 	}
 	
-	class AcycConshdlr extends ConstraintHandler<VoidData> {
+	class AcycConshdlr extends ConstraintHandler<VoidData,AcycConshdlr> {
 
-		public AcycConshdlr() {
+		public AcycConshdlr(SCIP scip) {
 			//"false" in the last argument to trigger constraint checking even with no associated constraints
-			super(VoidData.class, "AcycConshdlr", "acyclicity handler",
+			super(scip, VoidData.class, "AcycConshdlr", "acyclicity handler",
 					CONSHDLR_ENFOPRIORITY, CONSHDLR_CHCKPRIORITY, 0, false);
 			//Eagerfreq = 0 because we don't use actual constraints
 		}
 
-		public SCIP_RESULT addCycles(SCIP_SOL sol, ArrayList<int[]> cycleList) {
+		public SCIP_RESULT addCycles(SCIP scip, SCIP_SOL sol, ArrayList<int[]> cycleList) {
 			boolean is_infeasible = false;
 			
 			if(Main_Load.TESTING)
@@ -211,35 +209,35 @@ public class ILP_CoverAndChunks_Conshdlr {
 			for(int[] cycle : cycleList) {
 				
 				if(CALLBACK_ROW) {
-					SCIP_ROW row = JSCIP.createEmptyRowConshdlr(this.conshdlr, "cycRow"+cycle.length, 1, inf, false, false, true);
-					JSCIP.cacheRowExtensions(row);
+					SCIP_ROW row = scip.createEmptyRowConshdlr(this.conshdlr, "cycRow"+cycle.length, 1, inf, false, false, true);
+					scip.cacheRowExtensions(row);
 					for(int v : cycle) {
-						JSCIP.addVarToRow(row, vars[v], 1);
+						scip.addVarToRow(row, vars[v], 1);
 					}
-					JSCIP.flushRowExtensions(row);
+					scip.flushRowExtensions(row);
 					
-					is_infeasible |= JSCIP.addRow(row, false);
+					is_infeasible |= scip.addRow(row, false);
 //					System.out.println(" is_infeas: "+is_infeasible);
 //					System.out.println(" is_cut_effic: "+JSCIP.isCutEfficacious(sol, row));
-					JSCIP.releaseRow(row);
+					scip.releaseRow(row);
 				}
 				if(CALLBACK_GLOBALCUT) {
-					SCIP_ROW row = JSCIP.createEmptyRowConshdlr(this.conshdlr, "cycRow"+cycle.length, 1, inf, false, false, true);
-					JSCIP.cacheRowExtensions(row);
+					SCIP_ROW row = scip.createEmptyRowConshdlr(this.conshdlr, "cycRow"+cycle.length, 1, inf, false, false, true);
+					scip.cacheRowExtensions(row);
 					for(int v : cycle) {
-						JSCIP.addVarToRow(row, vars[v], 1);
+						scip.addVarToRow(row, vars[v], 1);
 					}
-					JSCIP.flushRowExtensions(row);
-					JSCIP.addPoolCut(row);
+					scip.flushRowExtensions(row);
+					scip.addPoolCut(row);
 //					System.out.println(" is_cut_effic: "+JSCIP.isCutEfficacious(sol, row));
-					JSCIP.releaseRow(row);
+					scip.releaseRow(row);
 				}
 				if(CALLBACK_LINCONS)
-					addLinearCons(cycle);
+					addLinearCons(scip, cycle);
 				if(CALLBACK_SETPPCCONS)
-					addSetppcCons(cycle);
+					addSetppcCons(scip, cycle);
 				if(CALLBACK_LOGICORCONS)
-					addLogicorCons(cycle);
+					addLogicorCons(scip, cycle);
 			}
 
 			if(is_infeasible) {
@@ -250,12 +248,12 @@ public class ILP_CoverAndChunks_Conshdlr {
 		}
 
 		@Override
-		public SCIP_RESULT conscheck(ILP_CoverAndChunks_Conshdlr.VoidData[] conss, SCIP_SOL sol, boolean checkintegrality,
+		public SCIP_RESULT conscheck(SCIP scip, VoidData[] conss, SCIP_SOL sol, boolean checkintegrality,
 				boolean checklprows, boolean printreason, boolean completely) {
 			if(conss.length > 0)
 				throw new RuntimeException(); //where did you get a constraint from?
 			
-			ArrayList<Integer> trySol = extractSol(sol);
+			ArrayList<Integer> trySol = extractSol(scip, sol);
 			ArrayList<int[]> cycleList = null;
 			boolean acyc;
 			
@@ -273,14 +271,14 @@ public class ILP_CoverAndChunks_Conshdlr {
 				return SCIP_FEASIBLE;
 			else {
 				if(CONSCHECK_ADDCONS) {
-					addCycles(null, cycleList);
+					addCycles(scip, null, cycleList);
 				}
 				return SCIP_INFEASIBLE;
 			}
 		}
 
 		@Override
-		public SCIP_RETCODE conslock(ILP_CoverAndChunks_Conshdlr.VoidData cons, SCIP_LOCKTYPE locktype, int nlockspos,
+		public SCIP_RETCODE conslock(SCIP scip, VoidData cons, SCIP_LOCKTYPE locktype, int nlockspos,
 				int nlocksneg) {
 			if(cons != null)
 				return SCIP_ERROR; //where did you get a constraint from, what?
@@ -289,29 +287,29 @@ public class ILP_CoverAndChunks_Conshdlr {
 			for(int i=0; i<N; i++) {
 				if(!inChunk[i])
 					continue;
-				JSCIP.addVarLocksType(vars[i], SCIP_LOCKTYPE_MODEL, nlockspos, nlocksneg);
+				scip.addVarLocksType(vars[i], MODEL, nlockspos, nlocksneg);
 			}
 			
 			return SCIP_OKAY;
 		}
 
 		@Override
-		public SCIP_RESULT consenfops(ILP_CoverAndChunks_Conshdlr.VoidData[] conss, int nusefulconss, boolean solinfeasible,
+		public SCIP_RESULT consenfops(SCIP scip, VoidData[] conss, int nusefulconss, boolean solinfeasible,
 				boolean objinfeasible) {
 			if(Main_Load.TESTING)
 				System.out.println("CONSENFOPS?");
 			if(conss.length > 0)
 				throw new RuntimeException(); //where did you get a constraint from, what?
 
-			return consenfolp(conss, nusefulconss, solinfeasible);
+			return consenfolp(scip, conss, nusefulconss, solinfeasible);
 		}
 
 		@Override
-		public SCIP_RESULT consenfolp(ILP_CoverAndChunks_Conshdlr.VoidData[] conss, int nusefulconss, boolean solinfeasible) {
+		public SCIP_RESULT consenfolp(SCIP scip, ILP_CoverAndChunks_Conshdlr.VoidData[] conss, int nusefulconss, boolean solinfeasible) {
 			if(conss.length > 0)
 				throw new RuntimeException(); //where did you get a constraint from, what?
 
-			ArrayList<Integer> trySol = extractSol(null);
+			ArrayList<Integer> trySol = extractSol(scip, null);
 			ArrayList<int[]> cycleList = digForCycles(trySol);
 			if(Main_Load.TESTING)
 				System.out.println("CONSENFOLP with n="+trySol.size()+", cyc="+cycleList.size());
@@ -319,14 +317,15 @@ public class ILP_CoverAndChunks_Conshdlr {
 			if(cycleList.size() == 0)
 				return SCIP_FEASIBLE;
 			else {
-				return addCycles(null, cycleList);
+				return addCycles(scip, null, cycleList);
 			}
 		}
 
 		@Override
-		public SCIP_RETCODE consdelete(ILP_CoverAndChunks_Conshdlr.VoidData cons) {
+		public SCIP_RETCODE consdelete(SCIP scip, ILP_CoverAndChunks_Conshdlr.VoidData cons) {
 			throw new RuntimeException("Consdelete on .. what? "+cons);//this should never be called
 		}
+
 	}
 	
 //	public SCIP_RETCODE heurexec(SCIP scip, SCIP_HEUR heur, SCIP_HEURTIMING heurtiming, boolean nodeinfeasible,
@@ -423,30 +422,30 @@ public class ILP_CoverAndChunks_Conshdlr {
 		return cycleList;
 	}
 	
-	void addLinearCons(int[] cycle) {
-		SCIP_CONS cons = JSCIP.createConsBasicLinear("linCyc"+cycle.length, null, null, 1, inf);
+	void addLinearCons(SCIP scip, int[] cycle) {
+		SCIP_CONS cons = scip.createConsBasicLinear("linCyc"+cycle.length, null, null, 1, inf);
 		for(int v : cycle) {
-			JSCIP.addCoefLinear(cons, vars[v], 1.0);
+			scip.addCoefLinear(cons, vars[v], 1.0);
 		}
-		JSCIP.addCons(cons);
-		JSCIP.releaseCons(cons);
+		scip.addCons(cons);
+		scip.releaseCons(cons);
 	}
 	
-	void addSetppcCons(int[] cycle) {
+	void addSetppcCons(SCIP scip, int[] cycle) {
 		SCIP_VAR[] con_vars = new SCIP_VAR[cycle.length];
 		for(int i=0; i<cycle.length; i++)
 			con_vars[i] = vars[i]; 
-		SCIP_CONS cons = JSCIP.createConsBasicSetcover("ppcCyc"+cycle.length, con_vars);
-		JSCIP.addCons(cons);
-		JSCIP.releaseCons(cons);
+		SCIP_CONS cons = scip.createConsBasicSetcover("ppcCyc"+cycle.length, con_vars);
+		scip.addCons(cons);
+		scip.releaseCons(cons);
 	}
 	
-	void addLogicorCons(int[] cycle) {
+	void addLogicorCons(SCIP scip, int[] cycle) {
 		SCIP_VAR[] con_vars = new SCIP_VAR[cycle.length];
 		for(int i=0; i<cycle.length; i++)
 			con_vars[i] = vars[i]; 
-		SCIP_CONS cons = JSCIP.createConsBasicLogicor("lorCyc"+cycle.length, con_vars);
-		JSCIP.addCons(cons);
-		JSCIP.releaseCons(cons);
+		SCIP_CONS cons = scip.createConsBasicLogicor("lorCyc"+cycle.length, con_vars);
+		scip.addCons(cons);
+		scip.releaseCons(cons);
 	}
 }

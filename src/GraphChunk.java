@@ -1,6 +1,5 @@
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.HashSet;
 import java.util.Iterator;
 
@@ -93,7 +92,7 @@ public class GraphChunk {
 		int newSize = mapping.length + nvs;
 		for(int vi=0; vi<mapping.length; vi++) {
 			int v = mapping[vi];
-			int loc = Arrays.binarySearch(vs, vi);
+			int loc = Arrays.binarySearch(vs, v);
 			if(loc >= 0) {
 				alreadyIn[loc] = true;
 				ret[loc] = vi;

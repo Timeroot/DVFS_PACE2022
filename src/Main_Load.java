@@ -23,7 +23,7 @@ public class Main_Load {
 	
 	boolean foundSol = false;
 	
-	static final boolean TESTING = false;
+	static final boolean TESTING = true;
 	static final boolean VERBOSE = true && TESTING;
 	
 	//usually while testing we want to check all our outputs pass.
@@ -245,7 +245,7 @@ public class Main_Load {
 		//#133 has a large chunk of {N=1650,E=5134}.
 		//#157 is a tricky cycle cover problem -- just barely at time limit.
 		//#151 is a pretty hard cycle cover problem.
-		for(int i=127; i<=127; i+=2) {
+		for(int i=1; i<=127; i+=2) {
 			long t0 = System.currentTimeMillis();
 			
 			String problem = prefix+"000".substring(Integer.toString(i).length())+i;
