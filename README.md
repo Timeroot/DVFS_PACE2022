@@ -15,6 +15,10 @@ as PACE 2022, and outputs a minimal directed feedback vertex set as a list of ve
 
 If you want to use it as a library in your program, you should build a `Graph` and then call `ExactSolver.solve(g)`.
 
+# Writeup
+
+The algorithm and approach is documented at https://arxiv.org/pdf/2208.01119v1.pdf, the offficial writeup to accompany this submission.
+
 # License
 
 DVFS is released under the MIT License, see LICENSE.txt. However, be aware that the necessary components
